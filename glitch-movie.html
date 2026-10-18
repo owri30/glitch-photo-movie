@@ -1,0 +1,1813 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glitch Photo Movie</title>
+<style>
+:root{
+  --bg:#0b0b0f; --panel:#15151c; --line:#2a2a36; --text:#ecebf3; --muted:#9a98ad;
+  --accent:#3ff2d4; --accent2:#ff3fb4; --danger:#ff5a6a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+header h1{margin:0;font-size:18px;letter-spacing:.08em;font-family:ui-monospace,Consolas,monospace}
+header h1 span{color:var(--accent)}
+header p{margin:0;color:var(--muted);font-size:13px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;padding:20px;max-width:1500px;margin:0 auto}
+@media (max-width:900px){.layout{grid-template-columns:1fr;padding:16px}}
+.stage{min-width:0}
+.screen{background:#000;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;aspect-ratio:16/10;overflow:hidden;position:relative}
+.screen canvas{max-width:100%;max-height:100%;display:block}
+.screen .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;text-align:center;padding:20px;pointer-events:none}
+.transport{display:flex;align-items:center;gap:10px;margin-top:12px}
+.transport input[type=range]{flex:1}
+.time{font-family:ui-monospace,Consolas,monospace;font-size:13px;color:var(--muted);min-width:96px;text-align:right}
+.panel{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h2{margin:0 0 10px;font-size:13px;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.card h2 b{color:var(--accent);margin-right:6px;font-family:ui-monospace,Consolas,monospace}
+button,.btn{background:#22222d;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer;font-family:inherit}
+button:hover{border-color:#44445a}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent);color:#04201b;border-color:var(--accent);font-weight:700}
+button.play{width:44px;height:40px;padding:0;font-size:16px}
+.drop{border:1.5px dashed #3a3a4c;border-radius:10px;padding:18px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;transition:.15s}
+.drop.over{border-color:var(--accent);color:var(--text);background:#1b2a28}
+.drop strong{display:block;color:var(--text);font-size:14px;margin-bottom:4px}
+.thumbs{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px}
+.thumbs li{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:#000;border:1px solid var(--line);cursor:grab}
+.thumbs li.dragging{opacity:.4}
+.thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.thumbs .no{position:absolute;left:3px;top:3px;font:600 11px ui-monospace,Consolas,monospace;background:#000a;padding:1px 5px;border-radius:4px}
+.thumbs .x{position:absolute;right:3px;top:3px;width:20px;height:20px;padding:0;border-radius:50%;font-size:12px;line-height:18px;background:#000b}
+.thumbs .mv{position:absolute;bottom:3px;width:22px;height:20px;padding:0;font-size:11px;background:#000b}
+.thumbs .mv.l{left:3px}.thumbs .mv.r{right:3px}
+.thumbs .vid{position:absolute;left:50%;transform:translateX(-50%);bottom:3px;font:600 10px ui-monospace,Consolas,monospace;background:#000b;padding:2px 5px;border-radius:4px;white-space:nowrap}
+.row{display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap}
+.row label{font-size:13px;color:var(--muted);min-width:92px}
+.row select,.row input[type=number]{background:#0f0f15;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:14px}
+.row input[type=number]{width:80px}
+.row input[type=range]{flex:1;min-width:100px}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.5}
+.small{font-size:12px;color:var(--muted)}
+.progress{height:6px;background:#0f0f15;border-radius:3px;overflow:hidden;margin-top:10px}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.dl{display:none;margin-top:10px}
+.dl a{color:var(--accent);font-weight:700}
+.dl video{width:100%;margin-top:8px;border-radius:6px;background:#000}
+input[type=range]{accent-color:var(--accent)}
+.check{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text)}
+[hidden]{display:none!important}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom, 0px));max-width:min(560px,calc(100% - 32px));background:var(--panel);color:var(--text);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.5;z-index:50}
+</style>
+</head>
+<body>
+<header>
+  <h1>GLITCH<span>//</span>PHOTO MOVIE</h1>
+  <p>写真を並べるだけで、ビートに合わせたグリッチ動画を自動生成</p>
+</header>
+
+<div class="layout">
+  <section class="stage">
+    <div class="screen" id="screen">
+      <canvas id="out" width="1440" height="1080"></canvas>
+      <div class="empty" id="empty">右のパネルから写真を追加してください</div>
+    </div>
+    <div class="transport">
+      <button class="play" id="playBtn" title="再生 / 停止" disabled>▶</button>
+      <input type="range" id="seek" min="0" max="1000" value="0" step="1" disabled>
+      <span class="time" id="time">0.00 / 0.00</span>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="card">
+      <h2><b>01</b>写真・動画</h2>
+      <div class="drop" id="drop">
+        <strong>クリック or ドラッグ&ドロップ</strong>
+        写真（JPG / PNG / WebP）・動画（MP4 / MOV など）　複数選択OK
+      </div>
+      <input type="file" id="fileIn" accept="image/*,video/*" multiple hidden>
+      <ol class="thumbs" id="thumbs"></ol>
+      <p class="hint">ドラッグか ◀ ▶ で並べ替え。最初の1枚がオープニングとエンディングに使われます。動画はカットごとに続きから再生されます（動画の音は使いません。人物エフェクトは写真だけ）。</p>
+      <p class="hint" id="segStatus"></p>
+    </div>
+
+    <div class="card">
+      <h2><b>02</b>音楽（任意）</h2>
+      <div class="row">
+        <button id="musicBtn">曲を選ぶ</button>
+        <span class="small" id="musicName">未選択（無音で書き出し）</span>
+        <input type="file" id="musicIn" accept="audio/*,video/*" hidden>
+      </div>
+      <div class="row">
+        <label for="bpm">BPM</label>
+        <input type="number" id="bpm" min="60" max="200" step="0.1" value="128">
+        <button id="detectBtn" disabled>自動検出</button>
+      </div>
+      <div class="row">
+        <label for="audioStart">曲の開始位置</label>
+        <input type="range" id="audioStart" min="0" max="0" step="0.01" value="0" disabled>
+        <span class="small" id="audioStartVal">0.0s</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><b>03</b>スタイル</h2>
+      <div class="row">
+        <label for="aspect">画面比率</label>
+        <select id="aspect">
+          <option value="1440x1080">4:3（参考動画と同じ）</option>
+          <option value="1080x1920">9:16（縦・リール/TikTok）</option>
+          <option value="1920x1080">16:9（横）</option>
+          <option value="1080x1080">1:1（正方形）</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="length">動画の長さ</label>
+        <select id="length">
+          <option value="0" selected>自動（写真の枚数に合わせる）</option>
+          <option value="10">約10秒</option>
+          <option value="15">約15秒</option>
+          <option value="30">約30秒</option>
+          <option value="60">約60秒</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="beatsPer">基本の長さ</label>
+        <select id="beatsPer">
+          <option value="1">1拍（とても速い）</option>
+          <option value="2">2拍（速い）</option>
+          <option value="4" selected>4拍（標準）</option>
+          <option value="8">8拍（ゆっくり）</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="fit">写真の収め方</label>
+        <select id="fit">
+          <option value="contain">全体を表示（黒帯あり）</option>
+          <option value="cover">画面いっぱい（切り抜き）</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="intensity">グリッチの強さ</label>
+        <input type="range" id="intensity" min="0" max="1" step="0.05" value="0.8">
+        <span class="small val" data-for="intensity"></span>
+      </div>
+      <div class="row">
+        <label for="random">ランダム性</label>
+        <input type="range" id="random" min="0" max="1" step="0.05" value="0.6">
+        <span class="small val" data-for="random"></span>
+      </div>
+      <div class="row">
+        <label for="split">斜め分割</label>
+        <input type="range" id="split" min="0" max="1" step="0.05" value="0.35">
+        <span class="small val" data-for="split"></span>
+      </div>
+      <div class="row">
+        <label for="people">人物エフェクト</label>
+        <input type="range" id="people" min="0" max="1" step="0.05" value="0.5">
+        <span class="small val" data-for="people"></span>
+      </div>
+      <p class="hint">ランダム性：0で「基本の長さ」の一定リズム。上げるほど、0.23秒刻みの速い切り替えやシンコペーションなど色々なリズムが混ざり、数小節ごとにリズムが変わります。<br>斜め分割：画面を斜めに分けて半分ずつ別の加工にする頻度。<br>人物エフェクト：人物以外をぐにゃぐにゃ／モザイク／単色にする、人物・顔・体の一部にモザイクをかける、顔・目・口・手のひらの中に別の動画を流す、などの頻度。</p>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="hud" checked> HUD文字・ライン</label>
+      </div>
+      <div class="row">
+        <button id="shuffleBtn">🎲 エフェクトを組み替える</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><b>04</b>画質</h2>
+      <div class="row">
+        <label for="quality">画質</label>
+        <select id="quality">
+          <option value="clear">クリア（デジタル）</option>
+          <option value="tv80">80年代テレビ</option>
+          <option value="vhs">昔のビデオカメラ</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="retroAmt">レトロの強さ</label>
+        <input type="range" id="retroAmt" min="0" max="1" step="0.05" value="0.8">
+        <span class="small val" data-for="retroAmt"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><b>05</b>書き出し</h2>
+      <button class="primary" id="exportBtn" disabled>動画を書き出す</button>
+      <p class="hint">再生しながらリアルタイムで録画します。書き出し中はこの画面を開いたままにしてください（スマホは画面を消さないでください）。</p>
+      <div class="progress"><i id="prog"></i></div>
+      <div class="dl" id="dl"></div>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<script>
+'use strict';
+/* ============================================================
+   State
+   ============================================================ */
+const S = {
+  images: [],          // {bmp, url, tex, w, h, id}
+  bpm: 128, beatsPer: 4, fit: 'contain', intensity: 0.8, hud: true, seed: 7,
+  random: 0.6, split: 0.35, people: 0.5, length: 0, quality: 'clear', retroAmt: 0.8,
+  W: 1440, H: 1080,
+  audio: null, audioBuf: null, audioStart: 0,
+};
+let timeline = { segs: [], duration: 0, hits: [] };
+let playing = false, exporting = false, curT = 0, clockBase = 0;
+
+const $ = id => document.getElementById(id);
+const out = $('out');                                  // WebGL output (what you see / what gets recorded)
+const comp = document.createElement('canvas');         // transparent 2D canvas for HUD / glitch overlays
+const ctx = comp.getContext('2d');
+
+/* ============================================================
+   Seeded random helpers
+   ============================================================ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hi(...n){let h=2166136261;for(const v of n){h^=(v|0);h=Math.imul(h,16777619);h^=h>>>13}return h>>>0}
+const rnd = (...n) => mulberry32(hi(...n))();
+
+/* ============================================================
+   WebGL: scene pass (photo + effects) and post pass (picture quality)
+   ============================================================ */
+const gl = out.getContext('webgl', {preserveDrawingBuffer:true, antialias:false, premultipliedAlpha:false});
+
+const VS = `attribute vec2 p;varying vec2 vUv;void main(){vUv=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}`;
+
+const COMMON = `
+precision highp float;
+varying vec2 vUv;
+float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.03;a*=.5;}return v;}
+vec3 hsv(float h,float s,float v){vec3 k=clamp(abs(mod(h*6.+vec3(0,4,2),6.)-3.)-1.,0.,1.);return v*mix(vec3(1),k,s);}
+float luma(vec3 c){return dot(c,vec3(.299,.587,.114));}
+`;
+
+const FS = COMMON + `
+uniform sampler2D uTex;
+uniform vec2 uRes, uImg, uPan;
+uniform float uFit, uStretchV, uStretchY, uStreakH, uRgb, uBlock, uBlur, uSeed, uTime, uFlash, uDots, uInvert, uPix;
+uniform float uLookA, uParA, uUvA, uLookB, uParB, uUvB, uSplit, uSplitA, uSplitP;
+uniform vec3 uFlashCol;
+/* person mask: R = person, G = face, B = hair, A = skin (1.0) / clothes (0.5) */
+uniform sampler2D uMask;
+uniform float uHasMask, uMaskFx, uMosA, uMosB, uFxPar;
+uniform vec4 uRect, uRect2;
+uniform float uParts;   // body-part mosaic: 1 face, 2 hair, 4 skin, 8 clothes, 16 two boxes inside the person
+/* feature windows: uFeat = R face outline, G eyes, B mouth, A palms; another clip (uVid) plays inside the chosen ones */
+uniform sampler2D uFeat, uVid;
+uniform float uFeatSel, uHasVid;   // 1 face, 2 eyes, 4 mouth, 8 palms
+uniform vec4 uFeatBox;            // bounding box of the chosen regions (image uv) the clip is fitted into
+uniform vec2 uVidImg;
+uniform vec3 uBgCol;
+uniform vec4 uProt;     // what a person-aware melt keeps: w<.5 the person mask, else a blob (x,y centre, z radius)
+
+vec2 toImg(vec2 s){
+  float sa=uRes.x/uRes.y, ia=uImg.x/uImg.y;
+  vec2 p=s-.5+uPan;
+  vec2 sc = ((ia>sa)==(uFit<.5)) ? vec2(1.,sa/ia) : vec2(ia/sa,1.);
+  return p/sc+.5;
+}
+vec3 samp(vec2 s){
+  vec2 u=toImg(s);
+  if(u.x<0.||u.x>1.||u.y<0.||u.y>1.) return vec3(0.);
+  return texture2D(uTex,u).rgb;
+}
+vec4 maskAt(vec2 s){
+  if(uHasMask<.5) return vec4(0.);
+  vec2 u=toImg(s);
+  if(u.x<0.||u.x>1.||u.y<0.||u.y>1.) return vec4(0.);
+  return texture2D(uMask,u);
+}
+vec2 pixAt(vec2 s,float px){ vec2 n=uRes/px; return (floor(s*n)+.5)/n; }
+float edgeAt(vec2 s){
+  vec2 px=1.5/uRes;
+  float tl=luma(samp(s+vec2(-px.x,-px.y))),t=luma(samp(s+vec2(0,-px.y))),tr=luma(samp(s+vec2(px.x,-px.y)));
+  float l=luma(samp(s+vec2(-px.x,0))),r=luma(samp(s+vec2(px.x,0)));
+  float bl=luma(samp(s+vec2(-px.x,px.y))),b=luma(samp(s+vec2(0,px.y))),br=luma(samp(s+vec2(px.x,px.y)));
+  float gx=-tl-2.*l-bl+tr+2.*r+br, gy=-tl-2.*t-tr+bl+2.*b+br;
+  return length(vec2(gx,gy));
+}
+
+/* geometric modes: 1 mosaic, 2 mirror, 3 kaleidoscope, 4 wave */
+vec2 uvMode(vec2 s,int m,float par){
+  float asp=uRes.x/uRes.y;
+  if(m==1){ float px=mix(16.,60.,fract(par*3.7)); vec2 n=uRes/px; return (floor(s*n)+.5)/n; }
+  if(m==2){ if(fract(par*2.3)<.5) s.x = s.x>.5?1.-s.x:s.x; else s.y = s.y>.5?1.-s.y:s.y; return s; }
+  if(m==3){ vec2 p=(s-.5)*vec2(asp,1.); float r=length(p); float a=atan(p.y,p.x)+par*1.3;
+            float sg=6.2831853/6.; a=mod(a,sg); a=abs(a-sg*.5); p=r*vec2(cos(a),sin(a)); return p/vec2(asp,1.)+.5; }
+  if(m==4){ s.x+=sin(s.y*28.+uTime*5.+par*6.)*.012; s.y+=sin(s.x*17.+uTime*3.)*.006; return s; }
+  if(m==5){                                                 // whole picture goes liquid and keeps flowing
+    vec2 w=vec2(fbm(s*2.6+uTime*.45+par*5.),fbm(s*2.6+4.1-uTime*.38))-.5;
+    vec2 w2=vec2(fbm(s*6.+w*3.+uTime*.3),fbm(s*6.+w*3.+2.3-uTime*.25))-.5;
+    return s+w*.14+w2*.07;
+  }
+  return s;
+}
+
+vec3 applyLook(vec3 col,vec2 s,int look,float par){
+  float L=luma(col);
+  if(look==1){ return hsv(fract(.72-L*.85+par),1.,1.); }                                     // thermal
+  if(look==2){ float v=clamp((L-.5)*1.35+.5,0.,1.); return vec3(mix(v,1.-v,step(.5,par))); }  // mono / negative
+  if(look==3){ vec3 a=hsv(par,.85,.35), b=hsv(par+.12,.25,1.); return mix(a,b,smoothstep(.05,.95,L))*1.1; } // duotone
+  if(look==4){                                                                               // neon edges
+    float e=clamp(edgeAt(s)*2.2,0.,1.);
+    vec3 neon=mix(vec3(.15,1.,.85),vec3(.9,1.,1.),e);
+    return col*.22*vec3(.6,.9,1.)+neon*pow(e,1.1)*(1.1+.4*par);
+  }
+  if(look==5){                                                                               // paint splash
+    vec2 q=s*vec2(uRes.x/uRes.y,1.)*2.2;
+    float n=fbm(q+vec2(uTime*.25,-uTime*.15)+par*10.);
+    float edge=smoothstep(.15,.0,s.x)+smoothstep(.85,1.,s.x)+smoothstep(.25,.0,s.y)*.6;
+    float m=smoothstep(.5,.62,n+edge*.25)*.9;
+    float hc=fbm(q*.7+3.+par*4.);
+    vec3 pc=hc<.45?vec3(1.,.15,.75):hc<.55?vec3(.55,1.,.25):vec3(.2,.85,1.);
+    col=mix(col,1.-(1.-col)*(1.-pc),m);
+    return mix(col,col*vec3(.92,.95,1.12),.5);
+  }
+  if(look==6){                                                                               // hue rotate
+    vec3 k=vec3(.57735);float c=cos(par*6.2832),sn=sin(par*6.2832);
+    col=col*c+cross(k,col)*sn+k*dot(k,col)*(1.-c);
+    return clamp((col-.5)*1.2+.5,0.,1.);
+  }
+  if(look==7){ return clamp(pow(col,vec3(.55))*1.25,0.,1.); }                                 // bleach
+  if(look==8){                                                                               // posterize pop
+    vec3 q=floor(col*2.99)/2.;
+    return mix(q,hsv(fract(L*.6+par),.9,1.)*step(.2,L),.35);
+  }
+  if(look==9){                                                                               // halftone
+    float cs=11.; float an=.785; float ca=cos(an),sa=sin(an);
+    vec2 fc=gl_FragCoord.xy;
+    vec2 g=vec2(ca*fc.x+sa*fc.y,-sa*fc.x+ca*fc.y)/cs;
+    vec2 cc=(floor(g)+.5)*cs;
+    vec2 cpx=vec2(ca*cc.x-sa*cc.y,sa*cc.x+ca*cc.y);
+    vec2 d=(cpx-fc)/uRes; d.y=-d.y;
+    vec3 sc=samp(s+d); float Lc=luma(sc);
+    float rad=sqrt(1.-Lc)*.62; float dd=length(fract(g)-.5);
+    vec3 ink=clamp((sc-.5)*1.6+.5,0.,1.)*.55;
+    vec3 paper=hsv(par,.12,1.);
+    return mix(paper,ink,1.-smoothstep(rad-.06,rad+.06,dd));
+  }
+  if(look==10){                                                                              // big RGB split
+    float o=.012+.025*par;
+    return vec3(samp(s+vec2(o,0.)).r,samp(s+vec2(0.,o*.6)).g,samp(s-vec2(o,0.)).b)*1.05;
+  }
+  if(look==11){ vec3 g=mix(vec3(.02,.22,.28),vec3(1.,.78,.5),smoothstep(0.,1.,L)); return mix(col,g,.65)*1.05; } // teal & orange
+  if(look==12){ vec3 c=mix(col,1.-col,step(.5,col)); return clamp(c*2.*vec3(1.,.85,1.2),0.,1.); }            // solarize
+  if(look==13){ float e=clamp(edgeAt(s)*3.,0.,1.); return vec3(.97,.96,.92)*(1.-pow(e,.8)*.95); }             // sketch
+  if(look==14){                                                                              // gradient map
+    vec3 c1=hsv(par,.8,.25), c2=hsv(par+.33,.7,.85), c3=hsv(par+.15,.25,1.);
+    return L<.5?mix(c1,c2,L*2.):mix(c2,c3,L*2.-1.);
+  }
+  return col;
+}
+
+vec3 sampleCol(vec2 p){
+  if(uBlur>0.){
+    vec2 dir=vec2(.8,.45)*uBlur; vec3 c=vec3(0.);
+    for(int i=0;i<16;i++){float k=float(i)/15.-.5;c+=samp(p+dir*k);}
+    return c/16.;
+  }
+  return vec3(samp(p+vec2(uRgb,0.)).r, samp(p).g, samp(p-vec2(uRgb,uRgb*.3)).b);
+}
+
+void main(){
+  vec2 s=vUv;
+  if(uPix>1.){ vec2 n=uRes/uPix; s=(floor(s*n)+.5)/n; }
+
+  /* row displacement / block glitch */
+  if(uBlock>0.){
+    float row=floor(s.y*28.);
+    if(hash(vec2(row,uSeed))<uBlock*.45) s.x+=(hash(vec2(row,uSeed+1.7))-.5)*.25*uBlock;
+    vec2 cell=floor(s*vec2(14.,9.));
+    if(hash(cell+uSeed*1.31)<uBlock*.12) s=(cell+vec2(hash(cell+uSeed+7.),hash(cell+uSeed+9.))*.6)/vec2(14.,9.);
+  }
+  /* vertical pixel stretch */
+  if(uStretchV>0.){
+    float cj=hash(vec2(floor(s.x*uRes.x/2.),floor(uSeed)));
+    float y0=uStretchY+(cj-.5)*.08*uStretchV;
+    if(s.y>y0) s.y=mix(s.y,y0,uStretchV);
+  }
+  /* horizontal colour streaks */
+  float streak=0.; vec3 tint=vec3(1.);
+  if(uStreakH>0.){
+    float band=floor(s.y*uRes.y/(8.+hash(vec2(floor(s.y*12.),uSeed))*55.));
+    float hb=hash(vec2(band,uSeed+3.3));
+    if(hb<uStreakH){
+      float x0=hash(vec2(band,uSeed+5.1)), len=hash(vec2(band,uSeed+8.))*.9+.1;
+      if(abs(s.x-x0)<len){
+        s.x=x0+(s.x-x0)*.015; streak=1.;
+        float c=hash(vec2(band,uSeed+11.));
+        tint = c<.25?vec3(.3,1.,.95): c<.45?vec3(1.,1.,.2): c<.6?vec3(1.,.3,.85): c<.75?vec3(.45,.4,1.):vec3(1.2);
+        if(hb<uStreakH*.25) streak=2.;
+      }
+    }
+  }
+
+  /* diagonal split: choose which treatment this pixel gets */
+  float side=0., dl=1e4;
+  if(uSplit>.5){
+    vec2 n=vec2(cos(uSplitA),sin(uSplitA));
+    float d=dot((vUv-.5)*vec2(uRes.x/uRes.y,1.),n)-uSplitP;
+    side=step(0.,d); dl=abs(d)*uRes.y;
+  }
+  int look=int((side>.5?uLookB:uLookA)+.5);
+  float par=side>.5?uParB:uParA;
+  int uvm=int((side>.5?uUvB:uUvA)+.5);
+  vec2 ss=uvMode(s,uvm,par);
+
+  vec3 col=sampleCol(ss);
+
+  /* person-aware effects */
+  int mfx=int(uMaskFx+.5);
+  if(mfx>0){
+    float person=smoothstep(.3,.7,maskAt(ss).r);
+    if(mfx==9){
+      // only the person turns into a moving psychedelic pattern; the silhouette edge wobbles a little
+      float sc=2.5+3.*fract(uFxPar*2.3);
+      vec2 w=vec2(fbm(ss*sc+uTime*.55+uFxPar*7.),fbm(ss*sc+5.2-uTime*.45))-.5;
+      vec2 w2=vec2(fbm(ss*sc*2.2+w*4.+uTime*.3),fbm(ss*sc*2.2+w*4.+3.7-uTime*.2))-.5;
+      person=smoothstep(.3,.7,maskAt(ss+w*.02).r);
+      vec2 pp=ss+w*.09+w2*.05;
+      vec3 img=sampleCol(pp);
+      float hh=fbm(pp*6.+w2*3.+uTime*.25);
+      vec3 psy=hsv(fract(hh*2.2+luma(img)*.7+uTime*.12+uFxPar),1.,1.);
+      psy=mix(psy,vec3(1.),smoothstep(.03,0.,abs(fract(hh*10.+uTime*.4)-.5)-.44)*.45);   // marbled veins
+      vec3 pc9 = fract(uFxPar*5.3)<.5
+        ? psy*(.3+.85*luma(img))                       // pure pattern, shaded by the person
+        : 1.-(1.-img)*(1.-psy*.85);                     // warped person with the pattern screened over
+      col=mix(col,pc9,person);
+    }
+    vec3 pc=col, bc=col;
+    if(mfx==1||mfx==8){                                   // background goes liquid (8 = psychedelic marble)
+      float sc=mix(2.,4.5,fract(uFxPar*1.7));
+      vec2 w=vec2(fbm(ss*sc+uTime*.35+uFxPar*5.),fbm(ss*sc+7.3-uTime*.28))-.5;
+      vec2 w2=vec2(fbm(ss*sc*2.+w*3.),fbm(ss*sc*2.+w*3.+4.1))-.5;
+      vec2 bp=ss+(w*.32+w2*.18)*(.6+.8*fract(uFxPar*3.1));
+      bc=sampleCol(bp);
+      if(mfx==8){
+        float hh=fbm(bp*5.+uTime*.2);
+        bc=mix(bc,hsv(fract(hh*1.6+uFxPar),.75,1.),.45+.3*sin(hh*20.));
+        bc=mix(bc,vec3(1.),smoothstep(.02,0.,abs(fract(hh*9.)-.5)-.45)*.6);  // marble veins
+      }
+    }
+    if(mfx==10){
+      vec2 iu=toImg(ss);
+      vec4 f=(iu.x<0.||iu.x>1.||iu.y<0.||iu.y>1.) ? vec4(0.) : texture2D(uFeat,iu);
+      float sel=0.;
+      if(mod(uFeatSel,2.)>=1.) sel=max(sel,f.r);
+      if(mod(floor(uFeatSel/2.),2.)>=1.) sel=max(sel,f.g);
+      if(mod(floor(uFeatSel/4.),2.)>=1.) sel=max(sel,f.b);
+      if(mod(floor(uFeatSel/8.),2.)>=1.) sel=max(sel,f.a);
+      sel=smoothstep(.2,.8,sel);
+      vec2 bu=(iu-uFeatBox.xy)/max(uFeatBox.zw-uFeatBox.xy,vec2(.001));
+      float ba=((uFeatBox.z-uFeatBox.x)*uImg.x)/max((uFeatBox.w-uFeatBox.y)*uImg.y,1.), va=uVidImg.x/uVidImg.y;
+      vec2 vu=bu-.5; if(ba>va) vu.y*=va/ba; else vu.x*=ba/va; vu+=.5;   // clip covers the box
+      vec3 vc;
+      if(uHasVid>.5) vc=texture2D(uVid,clamp(vu,0.,1.)).rgb;
+      else { float hh=fbm(bu*3.+uTime*.3); vc=hsv(fract(hh*2.+uTime*.1),.9,1.); }   // no clip loaded: a moving pattern
+      float rim=smoothstep(0.,.3,sel)*(1.-smoothstep(.3,.7,sel));
+      col=mix(col,vc,sel)+rim*.18;
+      pc=col; bc=col;                                     // keep it through the person blend below
+    }
+    else if(mfx==9){ pc=col; }
+    else if(mfx==2){ bc=sampleCol(pixAt(ss,uMosA)); }                          // background mosaic
+    else if(mfx==3){ pc=sampleCol(pixAt(ss,uMosA)); }                          // subtle mosaic on the person
+    else if(mfx==4){                                                           // face (and hair) mosaic
+      vec2 ps=pixAt(ss,uMosA); vec4 m=maskAt(ps);
+      float f=step(.5,m.g+m.b*step(.5,uFxPar));
+      pc=mix(col,sampleCol(ps),f);
+    }
+    else if(mfx==5){                                                           // mosaic on a few body parts
+      vec2 ps=pixAt(ss,uMosA); vec2 u=toImg(ps); vec4 m=maskAt(ps);
+      float sel=0.;
+      if(mod(uParts,2.)>=1.) sel=max(sel,step(.5,m.g));
+      if(mod(floor(uParts/2.),2.)>=1.) sel=max(sel,step(.5,m.b));
+      if(mod(floor(uParts/4.),2.)>=1.) sel=max(sel,step(.75,m.a));
+      if(mod(floor(uParts/8.),2.)>=1.) sel=max(sel,step(.3,m.a)*step(m.a,.7));
+      if(mod(floor(uParts/16.),2.)>=1.){
+        float r1=step(uRect.x,u.x)*step(u.x,uRect.z)*step(uRect.y,u.y)*step(u.y,uRect.w);
+        float r2=step(uRect2.x,u.x)*step(u.x,uRect2.z)*step(uRect2.y,u.y)*step(u.y,uRect2.w);
+        sel=max(sel,max(r1,r2)*step(.5,m.r));
+      }
+      pc=mix(col,sampleCol(ps),sel);
+    }
+    else if(mfx==6){                                                           // background replaced by a flat colour
+      vec2 q=ss*vec2(uRes.x/uRes.y,1.);
+      bc=uBgCol*(.9+.15*fbm(q*3.+uTime*.2))+(hash(gl_FragCoord.xy+uSeed)-.5)*.05;
+    }
+    else if(mfx==7){                                                           // coarse background + fine person mosaic
+      bc=sampleCol(pixAt(ss,uMosA)); pc=sampleCol(pixAt(ss,uMosB));
+    }
+    col=mix(bc,pc,person);
+  }
+
+  if(streak>0.) col = streak>1.5 ? vec3(0.) : clamp(col*tint*1.35,0.,1.);
+
+  col=applyLook(col,ss,look,par);
+  if(uInvert>.5) col=1.-col;
+
+  if(uDots>0.){
+    vec2 cell=floor(s*vec2(10.,7.));
+    if(hash(cell+floor(uSeed))<uDots*.3){
+      vec2 g=fract(gl_FragCoord.xy/14.)-.5;
+      if(length(g)<.2) col=mix(col,vec3(1.),.9);
+    }
+  }
+  if(uSplit>.5 && dl<1.6) col=vec3(1.);
+  col=mix(col,uFlashCol,uFlash);
+  float keep;
+  if(uProt.w<.5) keep=smoothstep(.3,.7,maskAt(ss).r);
+  else {
+    vec2 d=(vUv-uProt.xy)*vec2(uRes.x/uRes.y,1.);
+    float e=length(d)/uProt.z+(fbm(vUv*5.+uProt.x*9.)-.5)*.45;
+    keep=smoothstep(1.,.8,e);
+  }
+  gl_FragColor=vec4(col,keep);
+}`;
+
+/* post pass: 0 clear, 1 = 80s CRT TV, 2 = old VHS camcorder */
+const PFS = COMMON + `
+uniform sampler2D uTex,uOv; uniform vec2 uRes; uniform float uMode,uAmt,uTime;
+vec3 tx(vec2 u){
+  if(u.x<0.||u.x>1.||u.y<0.||u.y>1.) return vec3(0.);
+  vec3 b=texture2D(uTex,vec2(u.x,1.-u.y)).rgb;   // mixed frame (rendered upside down in its FBO)
+  vec4 o=texture2D(uOv,u);                        // HUD / glitch bars drawn on a transparent canvas
+  return mix(b,o.rgb,o.a);
+}
+vec3 toYiq(vec3 c){ return vec3(dot(c,vec3(.299,.587,.114)),dot(c,vec3(.596,-.274,-.322)),dot(c,vec3(.211,-.523,.312))); }
+vec3 toRgb(vec3 y){ return vec3(y.x+.956*y.y+.621*y.z, y.x-.272*y.y-.647*y.z, y.x-1.106*y.y+1.703*y.z); }
+void main(){
+  vec2 u=vUv; int m=int(uMode+.5); float A=uAmt; float px=1./uRes.x;
+  float fr=floor(uTime*30.);
+  if(m==0||A<=0.){ gl_FragColor=vec4(tx(u),1.); return; }
+  if(m==1){
+    u.x+=sin(u.y*6.+uTime*2.)*.0012*A;                                // sync wobble
+    float lines=300.;
+    vec2 uq=vec2(u.x,mix(u.y,(floor(u.y*lines)+.5)/lines,A));
+    float hs=mix(1.,uRes.x/420.,A)*px;
+    float Y=(toYiq(tx(uq-vec2(hs,0.))).x+toYiq(tx(uq)).x*2.+toYiq(tx(uq+vec2(hs,0.))).x)*.25;
+    vec2 iq=vec2(0.); for(int i=-4;i<=4;i++) iq+=toYiq(tx(uq+vec2((float(i)*2.5+2.)*hs,0.))).yz; iq/=9.;
+    vec3 col=toRgb(vec3(Y,iq*mix(1.,.92,A)));
+    float sl=.5+.5*cos(fract(u.y*lines)*6.2831853);                   // scanlines
+    col*=mix(1.,.62+.38*sl,A);
+    float mk=mod(gl_FragCoord.x,3.);                                  // aperture grille
+    vec3 mask=mk<1.?vec3(1.,.8,.8):mk<2.?vec3(.8,1.,.8):vec3(.8,.8,1.);
+    col*=mix(vec3(1.),mask,.55*A);
+    float rb=fract(u.y*.7-uTime*.11);                                 // rolling bar
+    col*=1.+.06*A*smoothstep(0.,.12,rb)*smoothstep(.3,.12,rb);
+    col+=(hash(gl_FragCoord.xy+fr*1.37)-.5)*.1*A;                     // snow
+    col=pow(max(col,0.),vec3(mix(1.,1.12,A)))*mix(vec3(1.),vec3(1.06,1.,.9),A)*mix(1.,1.18,A);
+    gl_FragColor=vec4(clamp(col,0.,1.),1.); return;
+  }
+  /* VHS camcorder */
+  float line=floor(u.y*480.);
+  float j=(hash(vec2(line,fr))-.5)*.0025*A;                           // line jitter
+  float tb=fract(.9-uTime*.06);                                       // tracking band drifting up
+  float band=smoothstep(.035,0.,abs(u.y-tb))*A;
+  j+=band*(hash(vec2(line,fr+3.))-.3)*.03;
+  float hsw=smoothstep(.95,.97,u.y)*A;                                // head-switching noise at the bottom
+  j+=hsw*(.02+hash(vec2(line,fr))*.025);
+  j+=sin(uTime*1.7+u.y*3.)*.0015*A;                                   // slow wobble
+  vec2 uu=vec2(u.x+j,u.y);
+  float hs=mix(1.,uRes.x/340.,A)*px;
+  float Y=0.; for(int i=-2;i<=2;i++) Y+=toYiq(tx(uu+vec2(float(i)*hs,0.))).x; Y/=5.;
+  vec2 iq=vec2(0.); for(int i=-5;i<=5;i++) iq+=toYiq(tx(uu+vec2((float(i)*3.+5.)*hs,0.))).yz; iq/=11.;
+  vec3 col=toRgb(vec3(Y,iq*mix(1.,.7,A)));
+  col+=smoothstep(.62,1.,Y)*.2*A;                                     // blown highlights
+  col=mix(col,col*.86+.08,A)*mix(vec3(1.),vec3(1.05,.97,1.03),A);     // lifted blacks, warm tint
+  float g=hash(gl_FragCoord.xy+fract(uTime*7.)*100.);
+  col+=(g-.5)*.12*A;                                                  // grain
+  col=mix(col,vec3(g),band*.55);
+  col=mix(col,vec3(hash(gl_FragCoord.xy*1.3+fr)),hsw*.6);
+  if(hash(vec2(line,fr+9.))>1.-.004*A){                               // dropouts
+    float x0=hash(vec2(line,fr+11.));
+    col=mix(col,vec3(1.),step(abs(u.x-x0),.05)*.85);
+  }
+  vec2 v=u-.5; col*=1.-dot(v,v)*.7*A;
+  gl_FragColor=vec4(clamp(col,0.,1.),1.);
+}`;
+
+function compile(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));return s;}
+function program(fs,names){
+  const p=gl.createProgram();
+  gl.attachShader(p,compile(gl.VERTEX_SHADER,VS)); gl.attachShader(p,compile(gl.FRAGMENT_SHADER,fs));
+  gl.bindAttribLocation(p,0,'p'); gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u={}; names.forEach(n=>u[n]=gl.getUniformLocation(p,n));
+  return {p,u};
+}
+const scene = program(FS,['uTex','uRes','uImg','uPan','uFit','uStretchV','uStretchY','uStreakH','uRgb','uBlock','uBlur','uSeed','uTime',
+  'uFlash','uDots','uInvert','uPix','uFlashCol','uLookA','uParA','uUvA','uLookB','uParB','uUvB','uSplit','uSplitA','uSplitP',
+  'uMask','uHasMask','uMaskFx','uMosA','uMosB','uFxPar','uRect','uRect2','uParts','uBgCol','uProt','uFeat','uVid','uFeatSel','uHasVid','uFeatBox','uVidImg']);
+const post = program(PFS,['uTex','uOv','uRes','uMode','uAmt','uTime']);
+const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,vb);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+
+function makeTex(bmp){
+  const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  if(bmp) gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,bmp);
+  return t;
+}
+const postTex = makeTex(null);
+const emptyMask = makeTex(null);
+gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array(4));
+
+/* mix pass: combines two rendered layers (A = outgoing picture, B = incoming picture)
+   mode 0: A only · 1: A dissolves like water-soluble film revealing B · 2: A slides / splits and stops, B shows in the gap */
+const MFS = COMMON + `
+uniform sampler2D uA,uB; uniform vec2 uRes,uOff; uniform float uTime,uMode,uK,uSeedM,uSub,uAng,uGap;
+vec3 TA(vec2 u){ if(u.x<0.||u.x>1.||u.y<0.||u.y>1.) return vec3(0.); return texture2D(uA,vec2(u.x,1.-u.y)).rgb; }
+vec3 TB(vec2 u){ u=clamp(u,0.,1.); return texture2D(uB,vec2(u.x,1.-u.y)).rgb; }
+void main(){
+  vec2 u=vUv; int m=int(uMode+.5); float asp=uRes.x/uRes.y;
+  if(m==0){ gl_FragColor=vec4(TA(u),1.); return; }
+  if(m==1){
+    vec2 q=u*vec2(asp,1.);
+    // dissolving pattern: blotchy holes that open up and spread, with fine fibres at the edges
+    float n=fbm(q*1.8+uSeedM)*.72+fbm(q*7.+uSeedM*2.1)*.28;
+    n+=(.5-u.y)*.12;                                   // the film runs downward as it dissolves
+    float th=mix(.26,.78,uK);
+    float d=n-th;                                       // > 0: film still there
+    float front=smoothstep(.13,0.,d);                    // 1 right at the dissolving edge
+    vec2 w=vec2(fbm(q*5.+uK*2.+uSeedM),fbm(q*5.+4.3-uK*2.))-.5;
+    // film softens, swells and drips near the edge
+    float drip=front*front*(.03+.09*noise(vec2(u.x*55.,uSeedM)))*(.3+uK);
+    vec2 ua=u+w*.07*front-vec2(0.,drip);
+    vec3 a=TA(ua);
+    a=mix(a,a*.55+vec3(.42,.4,.38),front*.55);          // milky, thinning film
+    vec3 b=TB(u+w*.025*smoothstep(.06,0.,abs(d)));      // slight refraction of the picture underneath
+    float rim=smoothstep(.018,0.,abs(d-.006));
+    vec3 irid=hsv(fract(n*5.+uK*.7),.45,1.);
+    vec3 col=mix(b,a,smoothstep(0.,.01,d));
+    col=mix(col,irid,rim*.55);
+    col=mix(col,col*.6,smoothstep(.03,0.,abs(d+.02))*.5); // damp shadow just inside the hole
+    gl_FragColor=vec4(col,1.); return;
+  }
+  if(m==3){
+    // droop: A sags downward like warm goo; B shows above it
+    float x=u.x;
+    float wave=fbm(vec2(x*2.6+uSeedM,uSeedM*.7));                        // broad uneven sag
+    float drip=pow(noise(vec2(x*26.+uSeedM*3.,uSeedM)),4.);              // narrow drips that hang lower
+    float top=uK*(.35+.75*wave+1.1*drip);                                 // A's upper edge, per column
+    vec3 col;
+    if(u.y<top){
+      col=TB(u);
+      col*=1.-.4*smoothstep(.07,0.,top-u.y);                              // soft shadow under the edge
+    } else {
+      float t0=clamp((u.y-top)/max(1.-top,.001),0.,1.);
+      float ay=pow(t0,1.+uK*(1.4+wave*1.6));                             // upper part of A stretched out
+      vec2 w=vec2(fbm(vec2(x*5.,t0*3.)+uSeedM),fbm(vec2(x*5.+3.,t0*3.)-uSeedM))-.5;
+      float ax=x+w.x*.06*uK*(1.-t0)*(1.-t0);
+      col=TA(vec2(ax,ay+w.y*.02*uK*(1.-t0)));
+      float e=smoothstep(.05,0.,u.y-top);                                  // glossy, thinning lip
+      col=mix(col,col*1.2+.1,e*.55);
+      col*=1.-.25*smoothstep(.015,0.,u.y-top);
+    }
+    gl_FragColor=vec4(col,1.); return;
+  }
+  if(m==4){
+    vec4 a0=texture2D(uA,vec2(u.x,1.-u.y));
+    float keep=a0.a;                                   // person (or blob) of the outgoing picture stays solid
+    vec2 q=u*vec2(asp,1.);
+    float K=uK;
+    vec2 w=vec2(fbm(q*1.7+uTime*.16+uSeedM),fbm(q*1.7+5.3-uTime*.13+uSeedM))-.5;   // slow, syrupy movement
+    vec2 w2=vec2(fbm(q*3.8+w*3.+uTime*.11),fbm(q*3.8+w*3.+2.7-uTime*.1))-.5;
+    vec2 flow=(w*.30+w2*.16)*K;                        // viscous flow in every direction, growing as it melts
+    vec2 ua=u+flow;
+    vec4 aw=texture2D(uA,vec2(clamp(ua.x,0.,1.),1.-clamp(ua.y,0.,1.)));
+    vec3 b=TB(u+flow*.35*(1.-K));
+    vec3 bgA=mix(aw.rgb,b,aw.a);                        // don't smear the kept person into the goo
+    // the goo's colours swirl slowly like marbled ink; saturation and contrast keep breathing, each spot on its own beat
+    float mh=fbm(q*2.2+w*3.5+uTime*.07+uSeedM);
+    float ang=(mh*2.5+uTime*.09)*6.2832, ca=cos(ang), sa=sin(ang);
+    vec3 k3=vec3(.57735);
+    vec3 g=bgA*ca+cross(k3,bgA)*sa+k3*dot(k3,bgA)*(1.-ca);
+    float lum=luma(g);
+    g=mix(vec3(lum),g,1.9+.8*sin(uTime*.5+mh*9.));
+    g=(g-.5)*(1.15+.45*sin(uTime*.37+mh*7.+1.3))+.5;
+    g=mix(g,hsv(fract(mh*1.8+uTime*.05),.9,1.)*(.3+.8*lum),.42+.22*sin(uTime*.23+mh*5.));
+    g=mix(g,vec3(1.),smoothstep(.025,0.,abs(fract(mh*7.+uTime*.03)-.5)-.46)*.2);
+    bgA=mix(bgA,clamp(g,0.,1.),smoothstep(0.,.3,K));
+    // where the goo has thinned out the next picture shows; edges follow the flow
+    float n=fbm(q*1.4+w*2.4+uSeedM*1.7);
+    float th=mix(-.1,1.,K);
+    float gone=smoothstep(n-.07,n+.07,th);
+    vec3 col=mix(bgA,b,gone);
+    // glossy liquid: highlights from the slope of the flow field, strongest where it is still melting
+    float hgt=fbm(q*3.+w*4.+uTime*.08);
+    float hx=fbm(q*3.+w*4.+uTime*.08+vec2(.01,0.))-hgt, hy=fbm(q*3.+w*4.+uTime*.08+vec2(0.,.01))-hgt;
+    float spec=pow(clamp(.5+(hx-hy)*40.,0.,1.),8.);
+    float melting=(1.-gone)*smoothstep(0.,.25,K);
+    col+=spec*.5*melting;
+    col=mix(col,col*.78,smoothstep(.12,0.,abs(th-n))*melting);   // darker lip along the melting edge
+    // the kept part on top, with a faint shadow so it reads as standing in front
+    col=mix(col*(1.-.25*smoothstep(0.,.9,keep)*(1.-keep)),a0.rgb,keep);
+    gl_FragColor=vec4(col,1.); return;
+  }
+  // m==2: the outgoing picture splits (doors) or shifts and creeps; the incoming one shows where it has moved away
+  vec2 p=(u-.5)*vec2(asp,1.);
+  vec2 n=vec2(cos(uAng),sin(uAng));                  // normal of the split line (doors)
+  vec2 ou=uOff/vec2(asp,1.);                          // displacement in texture units
+  float px=1.5/uRes.y; vec3 col; float on=step(.0005,length(uOff));
+  if(uSub<.5){
+    float d1=dot(p-uOff,n), d2=dot(p+uOff,n);         // each half carries its own copy of the offset
+    if(d1>0. && dot(p,n)>0.) col=TA(u-ou);
+    else if(d2<0. && dot(p,n)<=0.) col=TA(u+ou);
+    else col=TB(u);
+    float seam=max(smoothstep(px*2.,0.,abs(d1))*step(0.,dot(p,n)),smoothstep(px*2.,0.,abs(d2))*step(dot(p,n),0.));
+    col=mix(col,vec3(1.),seam*on);
+  } else {
+    vec2 ua=u-ou;
+    bool inA=ua.x>=0.&&ua.x<=1.&&ua.y>=0.&&ua.y<=1.;
+    col=inA?TA(ua):TB(u);
+    vec2 e=min(ua,1.-ua)*vec2(asp,1.);
+    if(inA) col=mix(col,vec3(1.),smoothstep(px*2.,0.,min(e.x,e.y))*on);
+    else col*=.8+.2*smoothstep(0.,.06,-min(e.x,e.y));
+  }
+  gl_FragColor=vec4(col,1.);
+}`;
+const mixer = program(MFS,['uA','uB','uRes','uOff','uTime','uMode','uK','uSeedM','uSub','uAng','uGap']);
+function makeLayerFbo(){
+  const tex=makeTex(null), fb=gl.createFramebuffer();
+  return {tex,fb};
+}
+const layerFbo=[makeLayerFbo(),makeLayerFbo()];
+const mixFbo=makeLayerFbo();
+function sizeLayerFbos(w,h){
+  [...layerFbo,mixFbo].forEach(L=>{
+    gl.bindTexture(gl.TEXTURE_2D,L.tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER,L.fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,L.tex,0);
+  });
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+}
+
+/* ============================================================
+   Person segmentation (MediaPipe, runs in the browser; the model is
+   downloaded on first use, photos never leave the device)
+   ============================================================ */
+const MP_VER='0.10.14';
+let segmenterP=null;
+// a model published next to the page as base64 text parts (the page host only serves web file types
+// and caps file size), or the original URL when those parts aren't there (e.g. opened as a local file)
+async function modelSpec(parts,url){
+  try{
+    const txt=(await Promise.all(parts.map(p=>fetch(p).then(r=>{if(!r.ok)throw new Error(p);return r.text();})))).join('');
+    const bin=atob(txt), all=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) all[i]=bin.charCodeAt(i);
+    return {modelAssetBuffer:all};
+  }catch(e){ return {modelAssetPath:url}; }
+}
+function getSegmenter(){
+  if(!segmenterP) segmenterP=(async()=>{
+    const v=await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`);
+    const base=`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`;
+    const files={wasmLoaderPath:base+'/vision_wasm_internal.js', wasmBinaryPath:base+'/vision_wasm_internal.wasm'};
+    try{ const r=await fetch('mp/vision_wasm_internal.wasm',{method:'HEAD'}); if(r.ok) files.wasmBinaryPath=new URL('mp/vision_wasm_internal.wasm',location.href).href; }catch(e){}
+    const mk=spec=>v.ImageSegmenter.createFromOptions(files,{baseOptions:{...spec,delegate:'CPU'},
+      runningMode:'IMAGE', outputCategoryMask:true, outputConfidenceMasks:false});
+    // multiclass: face / hair / body parts; deeplab: general 'person' class, better on small or distant people
+    const [multi,deeplab]=await Promise.all([
+      modelSpec(['mp/multiclass.part1.txt','mp/multiclass.part2.txt'],'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite').then(mk),
+      modelSpec(['mp/deeplab_v3.txt'],'https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/1/deeplab_v3.tflite').then(mk)]);
+    // landmarks are optional extras: if they fail to load, the person effects still work
+    const mkLm=async(cls,parts,url,opts)=>{ try{ return await cls.createFromOptions(files,{baseOptions:{...(await modelSpec(parts,url)),delegate:'CPU'},runningMode:'IMAGE',...opts}); }catch(e){ console.warn('landmarks',e); return null; } };
+    const [faceLm,handLm]=await Promise.all([
+      mkLm(v.FaceLandmarker,['mp/face_landmarker.txt'],'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',{numFaces:6}),
+      mkLm(v.HandLandmarker,['mp/hand_landmarker.txt'],'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',{numHands:6})]);
+    const ids=c=>[...new Set((c||[]).flatMap(e=>[e.start,e.end]))];
+    const FL=v.FaceLandmarker;
+    const faceIdx={oval:ids(FL.FACE_LANDMARKS_FACE_OVAL), le:ids(FL.FACE_LANDMARKS_LEFT_EYE), re:ids(FL.FACE_LANDMARKS_RIGHT_EYE), lips:ids(FL.FACE_LANDMARKS_LIPS)};
+    return {multi,deeplab,faceLm,handLm,faceIdx};
+  })();
+  return segmenterP;
+}
+// categories: 0 background, 1 hair, 2 body skin, 3 face skin, 4 clothes, 5 accessories
+async function segmentImage(im){
+  const seg=await getSegmenter();
+  const sc=Math.min(1,640/Math.max(im.w,im.h));
+  const c=document.createElement('canvas'); c.width=Math.round(im.w*sc); c.height=Math.round(im.h*sc);
+  c.getContext('2d').drawImage(im.bmp,0,0,c.width,c.height);
+  const res=seg.multi.segment(c);
+  const m=res.categoryMask, w=m.width, h=m.height, cat=m.getAsUint8Array().slice();
+  res.close&&res.close();
+  const res2=seg.deeplab.segment(c);
+  const m2=res2.categoryMask, dl=m2.getAsUint8Array().slice(), w2=m2.width, h2=m2.height;
+  res2.close&&res2.close();
+  const dlAt=i=>{const x=Math.min(w2-1,Math.floor((i%w)/w*w2)), y=Math.min(h2-1,Math.floor(Math.floor(i/w)/h*h2)); return dl[y*w2+x]===15;};
+  const px=new Uint8Array(w*h*4);
+  let pa=0,fa=0; const pb=[1,1,0,0], parts={};
+  for(let i=0;i<w*h;i++){
+    const k=cat[i], x=(i%w)/w, y=Math.floor(i/w)/h;
+    const person=k>0||dlAt(i), face=k===3, hair=k===1, body=k===2||k===4;
+    px[i*4]=person?255:0; px[i*4+1]=face?255:0; px[i*4+2]=hair?255:0; px[i*4+3]=k===2?255:k===4?128:0;
+    if(person) parts[k]=(parts[k]||0)+1;
+    if(person){pa++;pb[0]=Math.min(pb[0],x);pb[1]=Math.min(pb[1],y);pb[2]=Math.max(pb[2],x);pb[3]=Math.max(pb[3],y);}
+    if(face){fa++;}
+  }
+  const t=makeTex(null);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,px);
+  im.mask=t; im.personArea=pa/(w*h); im.faceArea=fa/(w*h); im.personBox=pb;
+  const A=k=>(parts[k]||0)/(w*h);
+  im.partArea={face:A(3),hair:A(1),skin:A(2),clothes:A(4)};
+  try{ featureMask(im,c,seg); }catch(e){ console.warn('features',e); }
+}
+function hull(pts){
+  pts=pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]), lo=[], up=[];
+  for(const p of pts){ while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0) lo.pop(); lo.push(p); }
+  for(let i=pts.length-1;i>=0;i--){ const p=pts[i]; while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0) up.pop(); up.push(p); }
+  up.pop(); lo.pop(); return lo.concat(up);
+}
+// face outline / eyes / mouth / palms as an RGBA mask (one region per channel) + a bounding box per region
+function featureMask(im,c,seg){
+  if(!seg.faceLm && !seg.handLm) return;
+  const W=c.width, H=c.height;
+  const faces=seg.faceLm ? seg.faceLm.detect(c).faceLandmarks||[] : [];
+  const hands=seg.handLm ? seg.handLm.detect(c).landmarks||[] : [];
+  if(!faces.length && !hands.length) return;
+  const layers=[0,1,2,3].map(()=>{const k=document.createElement('canvas'); k.width=W; k.height=H; const x=k.getContext('2d'); x.fillStyle='#fff'; return {k,x};});
+  const box={};
+  const poly=(ch,key,lm,idx,grow)=>{
+    const pts=hull(idx.map(i=>[lm[i].x*W,lm[i].y*H]));
+    if(pts.length<3) return;
+    const cx=pts.reduce((a,p)=>a+p[0],0)/pts.length, cy=pts.reduce((a,p)=>a+p[1],0)/pts.length;
+    const g=pts.map(p=>[cx+(p[0]-cx)*grow, cy+(p[1]-cy)*grow]);
+    const x=layers[ch].x; x.beginPath(); g.forEach((p,j)=>j?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1])); x.closePath(); x.fill();
+    const b=box[key]||(box[key]=[1,1,0,0]);
+    g.forEach(p=>{b[0]=Math.min(b[0],p[0]/W);b[1]=Math.min(b[1],p[1]/H);b[2]=Math.max(b[2],p[0]/W);b[3]=Math.max(b[3],p[1]/H);});
+  };
+  const fi=seg.faceIdx;
+  faces.forEach(lm=>{ poly(0,'face',lm,fi.oval,1.03); poly(1,'eyes',lm,fi.le,1.6); poly(1,'eyes',lm,fi.re,1.6); poly(2,'mouth',lm,fi.lips,1.25); });
+  hands.forEach(lm=>poly(3,'palms',lm,[0,1,2,5,9,13,17],1.12));
+  const px=new Uint8Array(W*H*4);
+  layers.forEach((L,ch)=>{ const d=L.x.getImageData(0,0,W,H).data; for(let i=0;i<W*H;i++) px[i*4+ch]=d[i*4+3]; });
+  const t=makeTex(null);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,W,H,0,gl.RGBA,gl.UNSIGNED_BYTE,px);
+  im.feat=t; im.featBox=box; im.faceCount=faces.length; im.handCount=hands.length;
+}
+let segBusy=false, segAgain=false;
+async function segmentAll(){
+  if(segBusy){segAgain=true;return;}
+  const todo=S.images.filter(im=>!im.mask&&!im.segFailed&&im.kind!=='video');
+  if(!todo.length) return;
+  segBusy=true;
+  try{ await segmentRun(todo); } finally { segBusy=false; }
+  if(segAgain){segAgain=false;segmentAll();}
+}
+async function segmentRun(todo){
+  const st=$('segStatus');
+  try{
+    st.textContent='人物を検出中…（初回はモデルを読み込みます）';
+    await getSegmenter();
+    let k=0;
+    for(const im of todo){
+      st.textContent=`人物を検出中… ${++k} / ${todo.length}`;
+      await new Promise(r=>setTimeout(r,0));
+      if(S.images.includes(im)) await segmentImage(im);
+    }
+    const n=S.images.filter(im=>im.personArea>.01).length;
+    const fc=S.images.reduce((a,im)=>a+(im.faceCount||0),0), hc=S.images.reduce((a,im)=>a+(im.handCount||0),0);
+    st.textContent=`人物検出：写真 ${S.images.filter(im=>im.kind!=='video').length} 枚中 ${n} 枚で人物を検出（顔 ${fc}・手 ${hc}）`;
+  }catch(e){
+    console.warn('segmentation failed',e);
+    todo.forEach(im=>im.segFailed=true);
+    st.textContent='人物検出を使えませんでした（オフライン？）。人物エフェクト以外は使えます。';
+  }
+  if(!exporting) refresh();
+}
+
+/* ============================================================
+   Timeline
+   ============================================================ */
+const LOOK_ID = {normal:0,thermal:1,mono:2,mononeg:2,tint:3,neon:4,splash:5,hue:6,bleach:7,
+  poster:8,halftone:9,rgbsplit:10,cross:11,solar:12,sketch:13,gradmap:14};
+const STYLE_POOL = ['thermal','mono','mononeg','tint','neon','splash','hue','bleach','poster','halftone',
+  'rgbsplit','cross','solar','sketch','gradmap','normal','normal'];
+const UV_POOL = [1,2,3,4,5];   // mosaic, mirror, kaleidoscope, wave, liquid
+const TRANS_POOL = ['stretchV','streakH','black','white','blocks','mosaic','rgb','pmelt','pmelt','pmelt','panel'];
+const TWO_TR = ['pmelt','panel','melt','droop'];
+const GLITCH_TR = ['stretchV','streakH','black','white','blocks','mosaic','rgb'];
+const MASK_POOL = [1,2,3,3,3,4,4,5,5,5,6,7,8,9,10,10];   // 10: another clip plays inside face / eyes / mouth / palms   // person-only mosaic and body-part mosaic come up more often    // liquid bg, bg mosaic, person mosaic, face mosaic, body-part mosaic, flat bg, bg+person mosaic, marble bg
+const BG_COLS = [[1,.92,.1],[.62,1,.15],[1,.45,.75],[.3,.85,1],[1,.6,.1],[.95,.95,.92]];
+/* rhythm patterns, in beats per cut (at 128 BPM an 8th note = 0.23 s) */
+const PATTERNS = {
+  half:[2], quarter:[1], eighth:[.5], sixteenth:[.25],
+  clave:[1.5,1.5,1], dotted:[.75,.75,.5], gallop:[.5,.25,.25], swing:[.75,.25], push:[1,.5,.5],
+  stutter:[.25,.25,.25,.25,1], burst:[3,.25,.25,.25,.25], accel:[2,1,1,.5,.5,.5,.5], roll:[.5,.5,.5,.5,.25,.25,.25,.25,.25,.25,.25,.25],
+};
+const PATTERN_W = {eighth:5, quarter:3, half:2, clave:2, dotted:2, gallop:2, swing:1, push:2, stutter:2, burst:2, accel:1, roll:1, sixteenth:1};
+
+function buildTimeline(){
+  const n=S.images.length, beat=60/S.bpm, R=S.random;
+  const r=mulberry32(hi(S.seed,n,S.beatsPer,Math.round(R*20),Math.round(S.split*20),Math.round(S.people*20),S.length));
+  const pickFrom=a=>a[Math.floor(r()*a.length)];
+  const bags={};
+  const pick=(pool,prev)=>{
+    const key=String(pool[0])+pool.length; if(!bags[key]||!bags[key].length) bags[key]=[...pool].sort(()=>r()-.5);
+    const b=bags[key]; let j=b.findIndex(v=>v!==prev); if(j<0) j=0;
+    return b.splice(j,1)[0];
+  };
+  const pickPattern=prev=>{
+    const names=Object.keys(PATTERN_W).filter(k=>k!==prev);
+    let tot=0; names.forEach(k=>tot+=PATTERN_W[k]); let x=r()*tot;
+    for(const k of names){x-=PATTERN_W[k]; if(x<=0) return k;}
+    return names[0];
+  };
+  const segs=[];
+  if(!n){timeline={segs,duration:0,hits:[]};return;}
+
+  // total length in beats (whole bars)
+  let total = S.length>0 ? S.length/beat : Math.max(16, n*S.beatsPer);
+  total = Math.max(8, Math.ceil(total/4)*4);
+
+  // 1) phrases: each keeps one rhythm for a while (1-4 bars), then the rhythm changes.
+  //    After a run of fast cuts the camera "lands" on one picture for a while (a hold).
+  const hasPerson=i=>{const im=S.images[i];return im&&im.mask&&im.personArea>.01;};
+  const cuts=[]; let b=0, idx=0, prevPat='', lastFast=false;
+  while(b<total){
+    const first=b===0;
+    if(lastFast && !first){
+      const len=Math.min(total-b, b%4 ? (b%4===2?2:4-b%4) : pickFrom([2,4,4]));
+      if(len>=1){
+        // prefer a picture with a person in it, so the moving person effects can play out
+        let img=idx%n;
+        for(let j=0;j<n;j++){ if(hasPerson((idx+j)%n)){img=(idx+j)%n;break;} }
+        cuts.push({b,d:len,img,phrase:'hold',pStyle:null,fast:false,hold:true});
+        idx=img+1; b+=len; lastFast=false; prevPat='hold';
+        continue;
+      }
+    }
+    // now and then a long 2-bar cut that is reserved for a slow person-aware melt
+    if(!first && n>1 && b%4===0 && total-b>=8 && prevPat!=='melt' && r()<.35){
+      cuts.push({b,d:8,img:idx%n,phrase:'melt',pStyle:null,fast:false,melt:true});
+      idx++; b+=8; prevPat='melt'; lastFast=false;
+      continue;
+    }
+    const steady = first || r()>=R*.85;
+    const name = steady ? 'steady' : pickPattern(prevPat);
+    const pat = steady ? [S.beatsPer] : PATTERNS[name];
+    // a rhythm holds for a while (up to 4 bars); very fast ones are kept to short bursts
+    const minD=Math.min(...pat);
+    // a 2-beat burst is followed by a 2-beat phrase so bars stay aligned
+    const lens = minD<=.25 ? [2,4] : minD<=.5 ? [4,4,8] : R<.3 ? [8,16] : R<.7 ? [4,8,8,16] : [4,4,8];
+    let len=first?4:Math.min(total-b, b%4 ? 2 : pickFrom(lens));
+    const fast = !steady && minD<=.5;
+    const ping = fast && n>1 && r()<.35;                 // A-B-A-B between two photos
+    const pStyle = null;
+    let pb=b, k=0; const pingA=idx%n, pingB=(idx+1)%n;
+    while(pb<b+len-1e-6){
+      const d=Math.min(pat[k%pat.length], b+len-pb);
+      const img = ping ? (k%2?pingB:pingA) : idx%n;
+      cuts.push({b:pb,d,img,phrase:name,pStyle,fast});
+      if(!ping) idx++;
+      pb+=d; k++;
+    }
+    if(ping) idx+=2;
+    prevPat=name; b+=len; lastFast=fast;
+  }
+
+  // "freshness": remember the beat each effect (and each family of similar effects) was last used,
+  // and avoid re-using them too soon
+  const lastUse={};
+  const ago=(key,at)=>at-(lastUse[key]??-1e9);
+  const fresh=(cands,at,cdName,fam,cdFam,pre='')=>{
+    let ok=cands.filter(c=>ago('n'+pre+c,at)>=cdName && (!fam || ago('f'+fam(c),at)>=cdFam));
+    if(!ok.length) ok=cands.filter(c=>!fam || ago('f'+fam(c),at)>=cdFam);
+    if(!ok.length) ok=[...cands].sort((x,y)=>ago('n'+pre+y,at)-ago('n'+pre+x,at)).slice(0,Math.max(1,Math.ceil(cands.length/3)));
+    return pickFrom(ok);
+  };
+  const mark=(c,at,fam,pre='')=>{lastUse['n'+pre+c]=at; if(fam) lastUse['f'+fam(c)]=at;};
+  const STYLE_FAM={normal:'n',thermal:'map',gradmap:'map',hue:'map',poster:'map',tint:'map',
+    mono:'bw',mononeg:'bw',sketch:'bw',solar:'bw',halftone:'bw',neon:'glow',rgbsplit:'glow',cross:'film',bleach:'film',splash:'paint'};
+  const sFam=s=>STYLE_FAM[s]||s;
+  const MASK_FAM={1:'warp',8:'warp',9:'warp',2:'mos',3:'mos',4:'mos',5:'mos',7:'mos',6:'flat',10:'feat'};
+  const VIDS=S.images.map((m,j)=>m.kind==='video'?j:-1).filter(j=>j>=0);
+  const mFam=m=>'m'+MASK_FAM[m];
+  const tFam=t=>TWO_TR.includes(t)?'two':'g'+t;
+  const STYLES=[...new Set(STYLE_POOL)];
+  const phraseStyle={};
+
+  // 2) turn cuts into segments with looks / transitions / person effects
+  let prevS='normal', prevT='';
+  const clipPos={};
+  cuts.forEach((c,i)=>{
+    const start=c.b*beat, dur=c.d*beat, im=S.images[c.img], at=c.b;
+    let clipT0=0;
+    if(im.kind==='video'){ clipT0=clipPos[c.img]||0; if(clipT0+dur>im.dur-.05) clipT0=0; clipPos[c.img]=clipT0+dur; }
+    let style='normal';
+    if(i>0){
+      if(c.pStyle) style=phraseStyle[c.pStyle]||(phraseStyle[c.pStyle]=fresh(STYLES,at,12,sFam,3));
+      else style=fresh(STYLES,at,c.fast?6:12,sFam,c.fast?1.5:3);
+      if(style!=='normal') mark(style,at,sFam);
+    }
+    const shortCut = c.d<1;
+    let trans='none';
+    if(i>0){
+      if(shortCut) trans = r()<.25 ? fresh(['white','black','rgb','blocks'],at,4,null,0) : 'cut';
+      else trans = fresh(TRANS_POOL.filter((v,j,a)=>a.indexOf(v)===j),at,8,tFam,6);
+    }
+    // two-picture transitions need room, and can't start from a frame that is itself two pictures
+    const prevSeg=segs[segs.length-1];
+    const twoOk = c.d>=2 && prevSeg && !TWO_TR.includes(prevSeg.trans) && prevSeg.img!==c.img;
+    if(i>0 && twoOk && c.d>=4 && !c.hold && !c.melt && ago('ftwo',at)>=6 && r()<.35) trans='panel';
+    if(trans==='panel' && c.d<4) trans=fresh(GLITCH_TR,at,6,null,0);   // the creeping split needs a long cut
+    if(trans==='pmelt' && !c.melt) trans=twoOk&&c.d>=4?'panel':fresh(GLITCH_TR,at,6,null,0);   // the slow melt only on its own long cut
+    if(c.melt) trans = twoOk ? 'pmelt' : fresh(GLITCH_TR,at,6,null,0);
+    if(TWO_TR.includes(trans) && (!twoOk || c.hold)) trans=fresh(GLITCH_TR,at,6,null,0);
+    if(c.hold && r()<.6) trans=pickFrom(['cut','white','rgb']);            // land on the hold with a hard hit
+    if(trans!=='cut'&&trans!=='none') mark(trans,at,tFam);
+    let uv = i>0 && !c.fast && r()<.15+.25*R ? fresh(UV_POOL,at,16,null,0,'u') : 0;
+    let split=null;
+    if(i>0 && !c.hold && trans!=='panel' && r()<S.split){
+      const sb=fresh(STYLES.filter(s=>sFam(s)!==sFam(style)),at,8,null,0);
+      split={a:(r()<.5?.785:2.356)+(r()-.5)*.5, p:(r()-.5)*.35, styleB:sb, uvB:r()<.25?pickFrom(UV_POOL):0, swap:r()<R};
+    }
+    let maskFx=0;
+    const person = im.mask && im.personArea>.01;
+    if(c.hold){
+      // a hold shows something that keeps moving: the person turns psychedelic / the background flows,
+      // or (no person) the whole picture goes liquid
+      if(person) maskFx=fresh(im.featBox?[9,9,1,8,10,10]:[9,9,1,8],at,8,null,0,'m');
+      else if(im.kind==='video') style=fresh(['normal','cross','bleach'],at,4,null,0);   // a clip already moves
+      else { uv=5; style=fresh(['normal','hue','cross','bleach','tint'],at,4,null,0); }
+    } else if(i>0 && person && r()<S.people && ago('fmany',at)>=(c.fast?2:1)){
+      maskFx=fresh(MASK_POOL,at,10,mFam,4,'m');
+      if(maskFx===4&&im.faceArea<.001) maskFx=3;
+      if(maskFx===10&&!im.featBox) maskFx=3;
+    }
+    // which features get a clip: eyes + mouth, or one or two of face / eyes / mouth / palms
+    let feat=null;
+    if(maskFx===10){
+      const fb=im.featBox, BIT={face:1,eyes:2,mouth:4,palms:8};
+      const avail=Object.keys(BIT).filter(k=>fb[k]);
+      let take = avail.includes('eyes')&&avail.includes('mouth')&&r()<.3 ? ['eyes','mouth'] : [pickFrom(avail)];
+      if(take.length===1 && avail.length>1 && r()<.3) take.push(pickFrom(avail.filter(k=>k!==take[0])));
+      const box=[1,1,0,0]; let sel=0;
+      take.forEach(k=>{ sel|=BIT[k]; const b=fb[k]; box[0]=Math.min(box[0],b[0]); box[1]=Math.min(box[1],b[1]); box[2]=Math.max(box[2],b[2]); box[3]=Math.max(box[3],b[3]); });
+      feat={sel, box, vid:VIDS.length?pickFrom(VIDS):null, off:r()*20};
+    }
+    if(maskFx){ mark(maskFx,at,mFam,'m'); lastUse['fmany']=at; }
+    if(uv) mark(uv,at,null,'u');
+    // keep person effects readable: mostly natural / mild colours, no geometric warps
+    let st2=style, uv2=uv;
+    if(maskFx){ uv2=0; if(r()<.65) st2=fresh(['normal','tint','cross','hue','bleach','mono'],at,6,sFam,2); }
+    if(maskFx===9||maskFx===10) st2=fresh(['normal','bleach','cross'],at,4,null,0);   // keep the pattern's / clip's colours
+    if(st2!==style && st2!=='normal') mark(st2,at,sFam);
+    const flashes=[];
+    if(n>1 && i>0 && c.d>=2 && !TWO_TR.includes(trans)){
+      for(let k=1;k<c.d*2-1;k++) if(r()<R*.12){
+        let img; do{img=Math.floor(r()*n)}while(img===c.img);
+        const t0=start+k*beat/2;
+        flashes.push({t0,t1:t0+beat*(r()<.5?.25:.5),img,style:pickFrom(STYLE_POOL),vt0:r()});
+      }
+    }
+    let trDur=Math.min(.9, dur*.9, beat*((1-R)*1.5+R*(.25+r()*1.75)));
+    let meltDur=0, panel=null, kStop=1, protBlob=null, kEnd=1;
+    if(trans==='pmelt'){
+      meltDur=Math.min(dur*.8, beat*(4.5+r()*2));   // slow: about 2-3 s, then the kept person holds still
+      protBlob=[.32+r()*.36,.3+r()*.4,.2+r()*.14,1];  // for pictures without a person: keep a soft patch
+      kEnd = r()<.5 ? 1 : .55+r()*.2;                  // sometimes stop part-way so the colour-shifting goo stays around the person
+    }
+    if(trans==='melt'){
+      kStop = r()<.5 ? 1 : .45+r()*.3;                  // dissolve fully, or stop part-way and freeze
+      meltDur = kStop<1 ? Math.min(dur*.5, beat*(1+r())) : Math.min(dur*.85, Math.max(beat*1.5, Math.min(2.4, beat*(2+r()*2))));
+    }
+    if(trans==='droop'){
+      kStop = .35+r()*.4;                               // sags down, then freezes for the rest of the cut
+      meltDur = Math.min(dur*.5, beat*(.75+r()*1.25));
+    }
+    if(trans==='panel'){
+      const sub=r()<.5?0:1;
+      const ang=pickFrom([0,Math.PI/2,Math.PI/4,-Math.PI/4]);
+      const d1=sub===0 ? ang : ang+(r()<.5?Math.PI:0);           // first heading: apart (doors) / along the line (shift)
+      const d2=d1+(r()<.5?1:-1)*(Math.PI/4+r()*Math.PI/4);      // half way it veers off 45-90 degrees
+      panel={sub, ang, d1, d2, gap:sub===0?.22+r()*.25:.28+r()*.3};
+      trDur=Math.max(.3,Math.min(trDur,beat));
+    }
+    segs.push({img:c.img,clipT0,start,end:start+dur,style:st2,trans,uv:uv2,split,flashes,trDur,meltDur,kStop,protBlob,kEnd,panel,maskFx,
+      feat, fxPar:r(), bgCol:pickFrom(BG_COLS), tintHue:r(), hud:r()<.3, stretchY:.25+r()*.35});
+    if(!c.fast){prevS=style;prevT=trans;}
+  });
+  let t=total*beat;
+  segs.push({img:0,start:t,end:t+beat*2,style:'neon',trans:n>1?'black':'streakH',uv:0,split:null,flashes:[],maskFx:0,fxPar:0,bgCol:BG_COLS[0],
+    trDur:Math.min(.9,beat*1.5),tintHue:.5,hud:true,stretchY:.4,outro:true});
+  t+=beat*2;
+
+  // glitch hits: every cut, plus beats / off-beats depending on randomness
+  const hits=segs.map(s=>({t:s.start,a:1}));
+  for(let k=1;k*beat<t;k++){
+    const bt=k*beat;
+    if(r()>R*.35) hits.push({t:bt,a:1-R*.5*r()});
+    if(r()<R*.45) hits.push({t:bt+beat*.5,a:.5+.5*r()});
+    if(r()<R*.25) hits.push({t:bt+beat*.75,a:.4+.6*r()});
+    if(r()<R*.15) hits.push({t:bt+beat*.25,a:.4+.6*r()});
+  }
+  hits.sort((a,b)=>a.t-b.t);
+  timeline={segs,duration:t,hits};
+}
+
+function segAt(t){
+  const s=timeline.segs; let lo=0,h=s.length-1;
+  while(lo<h){const m=(lo+h)>>1; if(t<s[m].end) h=m; else lo=m+1;}
+  return lo;
+}
+function lastHit(t){
+  const h=timeline.hits; let lo=0,hi2=h.length-1,ans=null;
+  while(lo<=hi2){const m=(lo+hi2)>>1; if(h[m].t<=t){ans=h[m];lo=m+1;}else hi2=m-1;}
+  return ans;
+}
+
+function styleParam(st,sg,bi,hb,bf,salt){
+  switch(st){
+    case 'mononeg': return (bi+salt)%2?0:1;
+    case 'mono': return bi%4===3?1:0;
+    case 'thermal': return rnd(S.seed,hb,3+salt);
+    case 'tint': return sg.tintHue+(bi%2)*.5+salt*.3;
+    case 'hue': return hb*.17+sg.tintHue+salt*.5;
+    case 'neon': case 'rgbsplit': return Math.exp(-bf*5);
+    case 'splash': return bi*.37+salt;
+    case 'poster': return sg.tintHue+bi*.13;
+    case 'halftone': return sg.tintHue+salt*.5;
+    case 'gradmap': return sg.tintHue+Math.floor(bi/2)*.21+salt*.4;
+    default: return rnd(S.seed,bi,40+salt);
+  }
+}
+function lookOf(st,bf){ return st==='bleach'&&bf>=.5 ? 0 : LOOK_ID[st]; }
+
+/* look of one segment at time t (salt keeps two simultaneous layers from sharing random choices) */
+function segLook(sg,t,salt){
+  const beat=60/S.bpm, I=S.intensity, R=S.random;
+  const bi=Math.floor(t/beat), bf=(t/beat)-bi, hb=Math.floor(t/(beat/2));
+  const L={img:sg.img, split:0, splitA:0, splitP:0, t};
+  let stA=sg.style, uvA=sg.uv, split=sg.split;
+  for(const f of sg.flashes) if(t>=f.t0&&t<f.t1){L.img=f.img;stA=f.style;uvA=0;split=null;L.flashing=true;L.fl=f;break;}
+  const imL=S.images[L.img];
+  if(imL&&imL.kind==='video'){
+    const d=imL.dur||1;
+    L.vt = L.fl ? ((L.fl.vt0||0)*d+(t-L.fl.t0))%d : ((sg.clipT0||0)+(t-sg.start))%d;
+  }
+
+  // occasional look swaps on beats (more often with higher randomness)
+  const b=rnd(S.seed,bi,17+salt*50);
+  if(bi>0 && bf<.5){
+    if(stA==='normal'){
+      if(b<.22*I) stA='tint'; else if(b>1-.12*I) stA='thermal';
+    } else if(b<R*.12) stA=STYLE_POOL[Math.floor(rnd(S.seed,bi,23+salt*50)*STYLE_POOL.length)];
+  }
+  let stB=null, uvB=0;
+  if(split){
+    stB=split.styleB; uvB=split.uvB;
+    if(split.swap && bi%2){[stA,stB]=[stB,stA];[uvA,uvB]=[uvB,uvA];}
+    L.split=1; L.splitA=split.a; L.splitP=split.p;
+  }
+  L.lookA=lookOf(stA,bf); L.parA=styleParam(stA,sg,bi,hb,bf,salt*2); L.uvA=uvA;
+  L.lookB=stB?lookOf(stB,bf):0; L.parB=stB?styleParam(stB,sg,bi,hb,bf,salt*2+1):0; L.uvB=uvB;
+
+  /* person-aware effect: mosaic coarseness varies per segment, and per beat as randomness rises */
+  L.maskFx = L.img===sg.img ? sg.maskFx : 0;
+  if(L.maskFx===10 && sg.feat){ L.featSel=sg.feat.sel; L.featBox=sg.feat.box; L.featVid=sg.feat.vid; L.featT=sg.feat.off+(t-sg.start); }
+  L.fxPar=sg.fxPar; L.bgCol=sg.bgCol; L.rect=[0,0,0,0]; L.rect2=[0,0,0,0]; L.parts=0; L.mosA=10; L.mosB=8;
+  if(L.maskFx){
+    const u=Math.min(S.W,S.H)/1080;
+    const vary = rnd(S.seed,bi,31)<R*.6 ? bi : 0;
+    const pr=(k,arr)=>arr[Math.floor(rnd(S.seed,Math.round(sg.start*1000),vary,k)*arr.length)];
+    const fx=L.maskFx;
+    // person / body-part mosaic stays fine-grained; background mosaic can be coarser
+    L.mosA = u*(fx===3?pr(1,[9,11,13,16]) : fx===4?pr(2,[12,16,20,26]) : fx===5?pr(3,[10,13,16,20])
+               : fx===7?pr(4,[20,28,40,56]) : pr(5,[12,18,26,36,50]));
+    L.mosB = u*pr(6,[8,10,12]);
+    if(fx===8||fx===1) L.fxPar=sg.fxPar+(vary?rnd(S.seed,bi,33)*.3:0);
+    if(fx===5){
+      // 1-3 body parts (face / hair / skin / clothes), re-chosen every beat or half beat;
+      // when the parts can't be told apart, two boxes inside the person instead
+      const im=S.images[sg.img], pa=im.partArea||{};
+      const rr=k=>rnd(S.seed,Math.round(sg.start*1000),Math.floor(t/(beat*(R>.5?.5:1))),k);
+      const BIT={face:1,hair:2,skin:4,clothes:8};
+      const avail=Object.keys(BIT).filter(k=>pa[k]>.002).sort((a,b)=>rr(BIT[a]+20)-rr(BIT[b]+20));
+      const take=avail.slice(0,1+Math.floor(rr(5)*Math.min(3,avail.length)));
+      take.forEach(k=>L.parts|=BIT[k]);
+      if(!avail.length || rr(6)<.35){
+        L.parts|=16;
+        const pb=im.personBox||[0,0,1,1], bw=pb[2]-pb[0], bh=pb[3]-pb[1];
+        const box=o=>{const w=bw*(.2+rr(o)*.3), h=bh*(.12+rr(o+1)*.22), x=pb[0]+rr(o+2)*(bw-w), y=pb[1]+rr(o+3)*(bh-h); return [x,y,x+w,y+h];};
+        L.rect=box(1); L.rect2=box(10);
+      }
+    }
+  }
+  return L;
+}
+
+const easeOut=x=>{x=Math.min(1,Math.max(0,x));return 1-Math.pow(1-x,4);};
+
+/* per-frame parameters: one or two layers + how to combine them + frame-wide glitch */
+function frameParams(t){
+  const beat=60/S.bpm, I=S.intensity;
+  const segs=timeline.segs, si=segAt(t), sg=segs[si];
+  const lt=t-sg.start;
+  const q=Math.floor(t*15);                       // 15Hz glitch quantum
+  const P={panX:0, panY:0, stretchV:0, stretchY:sg.stretchY, streakH:0, rgb:0, block:0, blur:0, dots:0, pix:0,
+    flash:0, flashCol:[0,0,0], seed:(q%997)+1, glitch:0, hud:S.hud&&sg.hud, mix:{mode:0}};
+
+  const cur=segLook(sg,t,0);
+  P.layers=[cur];
+  if(cur.flashing) P.glitch+=.5;
+  const prev=segs[si-1];
+  if(prev && sg.trans==='pmelt'){
+    // everything but the person (or a kept blob) of the previous picture goes gooey and melts into this one;
+    // once melted, that person stays frozen on top while this picture keeps moving, until the next cut
+    const x=Math.min(1,lt/sg.meltDur), k=x*x*(3.-2.*x)*(sg.kEnd||1), frozen=x>=1;   // eases in and out: no sudden collapse
+    const prevL=segLook(prev, frozen ? sg.start+sg.meltDur : t, 1);
+    prevL.still=true;
+    const pim=S.images[prevL.img];
+    prevL.prot = pim.mask&&pim.personArea>.01 ? [0,0,0,0] : sg.protBlob;
+    cur.drift=true;
+    P.layers=[prevL,cur];
+    P.mix={mode:4,k,seed:sg.fxPar*17.3};
+    P.frozen=frozen;
+  } else if(prev && (sg.trans==='melt'||sg.trans==='droop') && (sg.kStop<1 || lt<sg.meltDur)){
+    // melt: the previous picture dissolves like water-soluble film / droop: it sags down like goo.
+    // With kStop < 1 it stops part-way and then stays completely frozen while the new picture keeps moving behind it.
+    const x=Math.min(1,lt/sg.meltDur);
+    const k=sg.kStop<1 ? sg.kStop*(1-Math.pow(1-x,3)) : x;
+    const frozen=sg.kStop<1 && x>=1;
+    const prevL=segLook(prev, frozen ? sg.start+sg.meltDur : t, 1);
+    prevL.still=true;                                    // no beat hits / jitter on the melting picture
+    cur.drift=sg.kStop<1;                                // the picture behind keeps moving
+    P.layers=[prevL,cur];
+    P.mix={mode:sg.trans==='droop'?3:1,k,seed:sg.fxPar*17.3};
+    P.frozen=frozen;
+  } else if(prev && sg.trans==='panel'){
+    // the previous picture slides / splits apart in one smooth move, stops, and both stay on screen
+    const pn=sg.panel, x=Math.min(1,lt/((sg.end-sg.start)*.95));
+    // inches forward in tiny jerks (each step eases in late, so it sticks, then nudges on)
+    const N=26, jerk=v=>{v=Math.min(1,Math.max(0,v));const f=v*N;return (Math.floor(f)+Math.pow(f-Math.floor(f),5))/N;};
+    const g1=pn.gap*.55*jerk(x*2), g2=pn.gap*.45*jerk(x*2-1);
+    const off=[Math.cos(pn.d1)*g1+Math.cos(pn.d2)*g2, Math.sin(pn.d1)*g1+Math.sin(pn.d2)*g2];
+    // only the moving picture shivers
+    const qq=Math.floor(t*30), amp=.004+.003*I;
+    off[0]+=(rnd(S.seed,qq,61)-.5)*amp; off[1]+=(rnd(S.seed,qq,62)-.5)*amp;
+    P.layers=[segLook(prev,t,1),cur];
+    P.mix={mode:2,sub:pn.sub,ang:pn.ang,off};
+  }
+
+  /* glitch hits (kept separate so a frozen layer can skip them) */
+  const h=lastHit(t);
+  const hit = h&&h.t>0 ? Math.exp(-(t-h.t)*6)*I*h.a : 0;
+  const hr = h ? rnd(S.seed,Math.round(h.t*1000),5) : 0;
+  P.hit={rgb:hit*.006, block:hit*(hr<.7?.55:.1), dots:hit*(hr>.3?1:.2),
+         panX:(rnd(S.seed,q,7)-.5)*.012*hit, panY:(rnd(S.seed,q,8)-.5)*.012*hit};
+  if(rnd(S.seed,q,9)<.07*I) P.hit.block+=.35*I;
+  P.glitch += hit*(P.frozen?.3:1);
+  P.layers.forEach(L=>{if(L.split&&!L.still) L.splitP += (rnd(S.seed,q,12)-.5)*.04*hit;});
+
+  /* glitch transitions (span the boundary: tail of previous seg + head of next).
+     melt / panel are handled above as two-layer transitions. */
+  let k=0, tr=null, trSeg=null;
+  const nx=segs[si+1];
+  if(si>0 && lt<sg.trDur/2){k=1-lt/(sg.trDur/2);tr=sg.trans;trSeg=sg;}
+  else if(nx && sg.end-t<nx.trDur/2){k=1-(sg.end-t)/(nx.trDur/2);tr=nx.trans;trSeg=nx;}
+  if(tr==='cut'||tr==='melt'||tr==='droop'||tr==='pmelt'||tr==='panel') tr=null;
+  if(tr){
+    const kk=k*(0.4+0.6*I), qq=rnd(S.seed,q,21);
+    P.glitch+=kk;
+    if(tr==='stretchV'){
+      P.stretchV=Math.min(1,kk*1.4); P.stretchY=trSeg.stretchY;
+    } else if(tr==='streakH'){
+      P.streakH=kk*.9; P.rgb+=kk*.012;
+    } else if(tr==='black'){
+      if(kk>.35&&qq<.55){P.flash=1;P.flashCol=[0,0,0];}
+      P.streakH=kk; P.block+=kk*.5;
+    } else if(tr==='white'){
+      P.flash=kk*kk*.95; P.flashCol=[1,1,1]; P.block+=kk*.4;
+    } else if(tr==='blocks'){
+      P.block+=kk*1.0; P.rgb+=kk*.015; P.dots+=kk;
+    } else if(tr==='mosaic'){
+      P.pix=4+kk*kk*80;
+    } else if(tr==='rgb'){
+      P.rgb+=kk*.05; P.block+=kk*.3;
+    }
+  }
+  /* fade out at very end */
+  const tail=timeline.duration-t;
+  if(tail<.35){P.flash=Math.max(P.flash,1-tail/.35);P.flashCol=[0,0,0];P.streakH=Math.max(P.streakH,.5);}
+  return P;
+}
+
+/* ============================================================
+   Overlay (2D canvas on top of GL output)
+   ============================================================ */
+function drawOverlay(t,P){
+  const W=S.W,H=S.H,u=Math.min(W,H)/1080;
+  const q=Math.floor(t*15), r=mulberry32(hi(S.seed,q,99));
+  const g=Math.min(1.6,P.glitch);
+  ctx.save();
+  ctx.fillStyle='#fff'; ctx.strokeStyle='#fff';
+
+  // white glitch bars
+  const nb=Math.floor(g*16*r());
+  for(let i=0;i<nb;i++){
+    const w=(30+r()*420)*u, h=(2+r()*r()*70)*u;
+    ctx.globalAlpha=.75+r()*.25;
+    ctx.fillRect(r()*W-w*.3,r()*H,w,h);
+  }
+  ctx.globalAlpha=1;
+
+  // corner brackets
+  if(g>.25 && r()<.8){
+    const n=1+Math.floor(r()*3);
+    ctx.lineWidth=Math.max(2,6*u);
+    for(let i=0;i<n;i++){
+      const x=r()*W*.8,y=r()*H*.8,s=(30+r()*60)*u;
+      ctx.beginPath();
+      if(r()<.5){ctx.moveTo(x,y+s);ctx.lineTo(x,y);ctx.lineTo(x+s,y);}
+      else{ctx.moveTo(x,y);ctx.lineTo(x,y+s);ctx.lineTo(x+s,y+s);}
+      ctx.stroke();
+    }
+  }
+
+  // lattice / truss boxes
+  if(g>.4 && r()<.6){
+    const x=r()*W*.85,y=r()*H*.85,w=(60+r()*160)*u,h=(40+r()*140)*u,cols=2+Math.floor(r()*3);
+    ctx.lineWidth=Math.max(1,2*u);
+    ctx.strokeRect(x,y,w,h);
+    const cw=w/cols;
+    ctx.beginPath();
+    for(let c=0;c<cols;c++){ctx.moveTo(x+c*cw,y);ctx.lineTo(x+(c+1)*cw,y+h);ctx.moveTo(x+(c+1)*cw,y);ctx.lineTo(x+c*cw,y+h);}
+    ctx.stroke();
+  }
+
+  // thin long scan lines
+  const nl=Math.floor(g*4*r());
+  for(let i=0;i<nl;i++){ctx.globalAlpha=.9;ctx.fillRect(r()*W*.5,r()*H,(200+r()*700)*u,Math.max(1,2*u));}
+  ctx.globalAlpha=1;
+
+  // HUD text + network lines
+  if(P.hud){
+    const rr=mulberry32(hi(S.seed,Math.floor(t*8),55));
+    ctx.font=`600 ${Math.round(20*u)}px ui-monospace,Consolas,monospace`;
+    ctx.textBaseline='top';
+    ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=4*u;
+    const f=()=>(rr()*20000).toFixed(10);
+    if(rr()<.7) ctx.fillText('DETECTING',30*u,26*u);
+    const bx=rr()<.5?30*u:W-330*u, by=rr()<.5?70*u:H-150*u;
+    const lines=[`x: ${f()}`,`y: ${f()}`,`Δfps: ${(rr()*3000).toFixed(9)}`,`&q: ${(rr()*2000).toFixed(9)}`];
+    lines.forEach((s,i)=>ctx.fillText(s,bx,by+i*26*u));
+    ctx.shadowBlur=0;
+    // network
+    if(rr()<.55){
+      const pts=[];for(let i=0;i<7;i++)pts.push([rr()*W,rr()*H*.6]);
+      ctx.lineWidth=Math.max(1,1.2*u);ctx.globalAlpha=.85;ctx.beginPath();
+      for(let i=1;i<pts.length;i++){ctx.moveTo(...pts[i-1]);ctx.lineTo(...pts[i]);if(rr()<.4){ctx.moveTo(...pts[0]);ctx.lineTo(...pts[i]);}}
+      ctx.stroke();
+      pts.forEach(p=>{ctx.fillRect(p[0]-3*u,p[1]-3*u,6*u,6*u)});
+      ctx.globalAlpha=1;
+    }
+    // crosshair
+    if(rr()<.5){
+      const cx=W*(.3+rr()*.4),cy=H*(.3+rr()*.4),s=40*u;
+      ctx.lineWidth=Math.max(1,2*u);
+      ctx.beginPath();ctx.moveTo(cx-s,cy);ctx.lineTo(cx+s,cy);ctx.moveTo(cx,cy-s);ctx.lineTo(cx,cy+s);ctx.stroke();
+      ctx.strokeRect(cx-s*.6,cy-s*.6,s*1.2,s*1.2);
+    }
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   Render one frame
+   ============================================================ */
+const QUALITY = {clear:0, tv80:1, vhs:2};
+let frameNo=0, renderQueued=false;
+function requestRender(){ if(renderQueued||playing) return; renderQueued=true; setTimeout(()=>{renderQueued=false; render(curT);},16); }
+function syncVideo(im,want,live){
+  const v=im.el; im.used=frameNo;
+  if(playing && live){
+    if(v.paused){ try{v.currentTime=want;}catch(e){} v.play().catch(()=>{}); }
+    else if(Math.abs(v.currentTime-want)>.35 && !v.seeking) v.currentTime=want;
+  } else {
+    if(!v.paused) v.pause();
+    if(Math.abs(v.currentTime-want)>.04 && !v.seeking) v.currentTime=want;
+  }
+  if(v.readyState>=2) gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,v);
+}
+function drawLayer(L,P,t,fb){
+  const W=S.W,H=S.H, im=S.images[L.img], u=scene.u;
+  const H0=L.still?{rgb:0,block:0,dots:0,panX:0,panY:0}:P.hit;
+  const lt=L.t??t;
+  const dx=L.drift?Math.sin(t*1.3)*.03+Math.sin(t*.37)*.02:0, dy=L.drift?Math.cos(t*.9)*.015:0;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(scene.p);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,im.tex); gl.uniform1i(u.uTex,0);
+  if(im.kind==='video') syncVideo(im,L.vt||0,!(L.still&&P.frozen));   // a frozen melt also freezes its clip
+  gl.uniform2f(u.uRes,W,H); gl.uniform2f(u.uImg,im.w,im.h); gl.uniform2f(u.uPan,P.panX+H0.panX+dx,P.panY+H0.panY+dy);
+  gl.uniform1f(u.uFit,S.fit==='cover'?1:0); gl.uniform1f(u.uInvert,0);
+  gl.uniform1f(u.uLookA,L.lookA); gl.uniform1f(u.uParA,L.parA); gl.uniform1f(u.uUvA,L.uvA);
+  gl.uniform1f(u.uLookB,L.lookB); gl.uniform1f(u.uParB,L.parB); gl.uniform1f(u.uUvB,L.uvB);
+  gl.uniform1f(u.uSplit,L.split); gl.uniform1f(u.uSplitA,L.splitA); gl.uniform1f(u.uSplitP,L.splitP);
+  gl.uniform1f(u.uStretchV,P.stretchV); gl.uniform1f(u.uStretchY,P.stretchY);
+  gl.uniform1f(u.uStreakH,P.streakH); gl.uniform1f(u.uRgb,P.rgb+H0.rgb); gl.uniform1f(u.uBlock,Math.min(1.5,P.block+H0.block));
+  gl.uniform1f(u.uBlur,P.blur); gl.uniform1f(u.uPix,P.pix); gl.uniform1f(u.uSeed,L.still&&P.frozen?7:P.seed); gl.uniform1f(u.uTime,lt);
+  gl.uniform1f(u.uFlash,P.flash); gl.uniform3fv(u.uFlashCol,P.flashCol); gl.uniform1f(u.uDots,Math.min(1.5,P.dots+H0.dots));
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D,im.mask||emptyMask); gl.uniform1i(u.uMask,1);
+  gl.uniform1f(u.uHasMask,im.mask?1:0); gl.uniform1f(u.uMaskFx,im.mask?L.maskFx:0);
+  gl.uniform1f(u.uMosA,L.mosA); gl.uniform1f(u.uMosB,L.mosB); gl.uniform1f(u.uFxPar,L.fxPar);
+  gl.uniform4fv(u.uRect,L.rect); gl.uniform4fv(u.uRect2,L.rect2); gl.uniform1f(u.uParts,L.parts);
+  gl.uniform4fv(u.uProt,L.prot||[0,0,0,0]); gl.uniform3fv(u.uBgCol,L.bgCol);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D,im.feat||emptyMask); gl.uniform1i(u.uFeat,2);
+  const vim = L.maskFx===10 && L.featVid!=null ? S.images[L.featVid] : null;
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D,vim?vim.tex:emptyMask); gl.uniform1i(u.uVid,3);
+  if(vim && vim.kind==='video') syncVideo(vim,(L.featT||0)%(vim.dur||1),!(L.still&&P.frozen));
+  gl.uniform1f(u.uHasVid,vim?1:0); gl.uniform2f(u.uVidImg,vim?vim.w:1,vim?vim.h:1);
+  gl.uniform1f(u.uFeatSel,L.featSel||0); gl.uniform4fv(u.uFeatBox,L.featBox||[0,0,1,1]);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+}
+function render(t){
+  const W=S.W,H=S.H; frameNo++;
+  if(!S.images.length){
+    ctx.clearRect(0,0,W,H);
+    gl.bindFramebuffer(gl.FRAMEBUFFER,mixFbo.fb); gl.viewport(0,0,W,H);
+    gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+  else{
+    const P=frameParams(t);
+    // each layer is rendered with its own effects into an offscreen texture, then combined
+    P.layers.forEach((L,i)=>drawLayer(L,P,t,layerFbo[i].fb));
+    gl.bindFramebuffer(gl.FRAMEBUFFER,mixFbo.fb);
+    gl.viewport(0,0,W,H);
+    gl.useProgram(mixer.p);
+    const m=P.mix, mu=mixer.u;
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,layerFbo[0].tex); gl.uniform1i(mu.uA,0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D,layerFbo[P.layers.length>1?1:0].tex); gl.uniform1i(mu.uB,1);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform2f(mu.uRes,W,H); gl.uniform1f(mu.uTime,t);
+    gl.uniform1f(mu.uMode,m.mode); gl.uniform1f(mu.uK,m.k||0); gl.uniform1f(mu.uSeedM,m.seed||0);
+    gl.uniform1f(mu.uSub,m.sub||0); gl.uniform1f(mu.uAng,m.ang||0); gl.uniform1f(mu.uGap,m.gap||0); gl.uniform2fv(mu.uOff,m.off||[0,0]);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    ctx.clearRect(0,0,W,H);
+    if(P.flash<.95) drawOverlay(t,P);
+  }
+  S.images.forEach(im=>{ if(im.kind==='video' && im.used!==frameNo && !im.el.paused) im.el.pause(); });   // clips off screen rest
+  // post pass: mixed frame + overlays -> picture-quality treatment -> visible canvas
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(post.p);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D,postTex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,comp);
+  gl.uniform1i(post.u.uOv,1);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,mixFbo.tex);
+  gl.uniform1i(post.u.uTex,0); gl.uniform2f(post.u.uRes,W,H);
+  gl.uniform1f(post.u.uMode,QUALITY[S.quality]); gl.uniform1f(post.u.uAmt,S.retroAmt); gl.uniform1f(post.u.uTime,t);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+}
+
+/* ============================================================
+   Playback
+   ============================================================ */
+let audioCtx=null, mediaSrc=null, gainNode=null, recDest=null;
+function ensureAudioGraph(){
+  if(!S.audio) return;
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(!mediaSrc){
+    mediaSrc=audioCtx.createMediaElementSource(S.audio);
+    gainNode=audioCtx.createGain();
+    recDest=audioCtx.createMediaStreamDestination();
+    mediaSrc.connect(gainNode); gainNode.connect(audioCtx.destination); gainNode.connect(recDest);
+  }
+  if(audioCtx.state==='suspended') audioCtx.resume();
+}
+
+function now(){
+  // follow the music clock while it plays; keep the wall clock in sync so we can
+  // carry on if the song ends before the video does
+  if(S.audio && playing && !S.audio.ended && !S.audio.paused){
+    const t=S.audio.currentTime - S.audioStart;
+    clockBase=performance.now()-t*1000;
+    return t;
+  }
+  return (performance.now()-clockBase)/1000;
+}
+
+async function play(from){
+  if(!S.images.length) return;
+  curT = from ?? (curT>=timeline.duration-.05?0:curT);
+  playing=true; $('playBtn').textContent='❚❚';
+  if(S.audio){
+    ensureAudioGraph();
+    gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(1,audioCtx.currentTime);
+    S.audio.currentTime=S.audioStart+curT;
+    try{await S.audio.play();}catch(e){console.warn(e);}
+  }
+  clockBase=performance.now()-curT*1000;
+  const id=++loopId; nextFrame(id);
+}
+function stop(){
+  playing=false; $('playBtn').textContent='▶';
+  S.images.forEach(im=>{ if(im.el) im.el.pause(); });
+  if(S.audio) S.audio.pause();
+}
+// rAF stops in hidden tabs; fall back to a timer so export keeps running
+let loopId=0;
+// (also when a "visible" page gets no animation frames, e.g. an embedded view that isn't painted)
+function nextFrame(id){
+  let done=false; const f=()=>{ if(done) return; done=true; loop(id); };
+  if(!document.hidden) requestAnimationFrame(f);
+  setTimeout(f,34);
+}
+function loop(id){
+  if(!playing||id!==loopId) return;
+  let t=now();
+  if(S.audio && gainNode && timeline.duration-t<.6){
+    // short fade out of the music near the end
+    gainNode.gain.setTargetAtTime(0,audioCtx.currentTime,.15);
+  }
+  if(t>=timeline.duration){t=timeline.duration;curT=t;render(t-.001);updateTime();stop();onPlaybackEnd();return;}
+  curT=Math.max(0,t); render(curT); updateTime();
+  if(exporting) $('prog').style.width=(curT/timeline.duration*100)+'%';
+  nextFrame(id);
+}
+function updateTime(){
+  $('time').textContent=`${curT.toFixed(2)} / ${timeline.duration.toFixed(2)}`;
+  $('seek').value=timeline.duration?Math.round(curT/timeline.duration*1000):0;
+}
+let onPlaybackEnd=()=>{};
+
+/* ============================================================
+   Export (MediaRecorder)
+   ============================================================ */
+function pickMime(){
+  const c=['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4',
+    'video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  return c.find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||'';
+}
+async function exportVideo(){
+  if(!S.images.length||exporting) return;
+  stop();
+  const mime=pickMime();
+  if(!window.MediaRecorder||!out.captureStream){notify('このブラウザは動画の録画に対応していません。Chrome / Edge / Safari の最新版をお使いください。');return;}
+  let wake=null;
+  if(navigator.wakeLock) navigator.wakeLock.request('screen').then(w=>wake=w).catch(()=>{});   // keep the phone screen on
+  ensureAudioGraph();
+  const stream=out.captureStream(30);
+  if(recDest) recDest.stream.getAudioTracks().forEach(tr=>stream.addTrack(tr));
+  const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:12_000_000}:{videoBitsPerSecond:12_000_000});
+  const chunks=[];
+  rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  exporting=true; setBusy(true);
+  $('dl').style.display='none';
+  const done=new Promise(res=>rec.onstop=res);
+  render(0);
+  rec.start(500);
+  onPlaybackEnd=()=>{onPlaybackEnd=()=>{};setTimeout(()=>rec.stop(),250);};
+  await play(0);
+  await done;
+  exporting=false; setBusy(false); $('prog').style.width='100%';
+  if(wake) wake.release().catch(()=>{});
+  const type=(mime||'video/webm').split(';')[0];
+  const ext=type.includes('mp4')?'mp4':'webm';
+  const blob=new Blob(chunks,{type});
+  const url=URL.createObjectURL(blob);
+  const name=`glitch-movie-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'')}.${ext}`;
+  const size=(blob.size/1048576).toFixed(1);
+  const saver=await getDownloads();
+  if(saver){
+    // inside claude.ai the page can't start downloads itself; the host asks the viewer and saves it
+    $('dl').innerHTML=`<button class="primary" id="saveBtn">⬇ 動画を保存（${size} MB）</button><video src="${url}" controls playsinline></video>`;
+    $('saveBtn').onclick=()=>saver.save({filename:name,data:blob})
+      .then(r=>{if(r.status==='saved') notify('保存しました。');})
+      .catch(e=>{ if(e&&e.code!=='declined') notify(`保存できませんでした（${e&&e.code||'unknown'}）。`); });
+  } else {
+    // phones: the share sheet can put the video straight into Photos; a download link as well everywhere
+    const file=new File([blob],name,{type});
+    const canShare=navigator.canShare&&navigator.canShare({files:[file]});
+    $('dl').innerHTML=`${canShare?`<button class="primary" id="shareBtn">共有／写真に保存（${size} MB）</button><br>`:''}<a href="${url}" download="${name}">⬇ ${name}（${size} MB）をダウンロード</a><video src="${url}" controls playsinline></video>`;
+    if(canShare) $('shareBtn').onclick=()=>navigator.share({files:[file]}).catch(e=>{ if(e&&e.name!=='AbortError') notify('共有できませんでした。下のリンクから保存してください。'); });
+  }
+  $('dl').style.display='block';
+}
+async function getDownloads(){
+  try{ return window.claude&&window.claude.use ? await window.claude.use('downloads') : null; }catch(e){ return null; }
+}
+function notify(msg){
+  const n=$('toast'); n.textContent=msg; n.hidden=false;
+  clearTimeout(notify.t); notify.t=setTimeout(()=>{n.hidden=true;},7000);
+}
+function setBusy(b){
+  ['exportBtn','playBtn','seek','shuffleBtn','aspect','beatsPer','bpm','fit','fileIn','musicBtn','detectBtn','audioStart','random','split','quality','people','length']
+    .forEach(id=>{const el=$(id);if(el)el.disabled=b||(id==='detectBtn'&&!S.audioBuf)||(id==='audioStart'&&!S.audio)});
+  $('exportBtn').textContent=b?'書き出し中…':'動画を書き出す';
+}
+
+/* ============================================================
+   Images
+   ============================================================ */
+let uid=0;
+const MAX_SIDE = navigator.maxTouchPoints>1 ? 1600 : 2048;   // phones and tablets have less GPU memory
+async function loadImage(f){
+  let src;
+  try{ src=await createImageBitmap(f,{imageOrientation:'from-image'}); }
+  catch(e){ const img=new Image(); img.src=URL.createObjectURL(f); await img.decode(); src=img; }
+  const w0=src.naturalWidth||src.width, h0=src.naturalHeight||src.height;
+  const sc=Math.min(1,MAX_SIDE/Math.max(w0,h0));
+  const c=document.createElement('canvas'); c.width=Math.round(w0*sc); c.height=Math.round(h0*sc);
+  const x=c.getContext('2d'); x.imageSmoothingQuality='high'; x.drawImage(src,0,0,c.width,c.height);
+  if(src.close) src.close();
+  return c;
+}
+const isVideo=f=>f.type.startsWith('video/')||/\.(mp4|mov|m4v|webm)$/i.test(f.name);
+// a muted, inline, looping <video> whose current frame is uploaded as a texture while it's on screen
+function loadVideo(f){
+  return new Promise((res,rej)=>{
+    const v=document.createElement('video');
+    v.muted=true; v.defaultMuted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.loop=true; v.preload='auto';
+    let done=false; const fail=()=>{if(!done){done=true;rej(new Error('video'));}};
+    v.onerror=fail; setTimeout(fail,20000);
+    v.onloadeddata=async()=>{
+      if(done) return;
+      if(!v.videoWidth){fail();return;}
+      v.pause();
+      try{ v.currentTime=Math.min(.5,(v.duration||1)/2); await new Promise(r=>{v.onseeked=r;setTimeout(r,1500);}); }catch(e){}
+      const sc=Math.min(1,320/Math.max(v.videoWidth,v.videoHeight)), c=document.createElement('canvas');
+      c.width=Math.round(v.videoWidth*sc); c.height=Math.round(v.videoHeight*sc);
+      c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+      v.onseeked=requestRender;
+      done=true; res({v,thumb:c});
+    };
+    v.src=URL.createObjectURL(f);
+    v.play().catch(()=>{});    // iOS only fetches frames once playback has been asked for
+  });
+}
+async function addFiles(files){
+  const list=[...files].filter(f=>f.type.startsWith('image/')||isVideo(f)||/\.(jpe?g|png|webp|gif|avif|heic)$/i.test(f.name));
+  for(const f of list){
+    try{
+      if(isVideo(f)){
+        const {v,thumb}=await loadVideo(f);
+        S.images.push({kind:'video',el:v,bmp:thumb,tex:makeTex(thumb),w:v.videoWidth,h:v.videoHeight,dur:v.duration||1,
+          url:thumb.toDataURL('image/jpeg',.8),id:++uid});
+      } else {
+        const bmp=await loadImage(f);
+        S.images.push({bmp,tex:makeTex(bmp),w:bmp.width,h:bmp.height,url:URL.createObjectURL(f),id:++uid});
+      }
+    }catch(e){
+      console.warn(e);
+      notify(`「${f.name}」を読み込めませんでした。${/heic/i.test(f.name)?'HEIC形式はこのブラウザでは開けません。JPEGで書き出してから追加してください。':isVideo(f)?'このブラウザでは再生できない動画形式の可能性があります（WindowsのChromeはiPhoneのHEVC動画を再生できないことがあります）。':''}`);
+    }
+  }
+  refresh();
+  segmentAll();
+}
+function refresh(){
+  buildTimeline();
+  const has=S.images.length>0;
+  $('empty').style.display=has?'none':'flex';
+  $('playBtn').disabled=!has; $('seek').disabled=!has; $('exportBtn').disabled=!has;
+  if(curT>timeline.duration) curT=0;
+  renderThumbs(); render(curT); updateTime();
+}
+function renderThumbs(){
+  const ol=$('thumbs'); ol.innerHTML='';
+  S.images.forEach((im,i)=>{
+    const li=document.createElement('li'); li.draggable=true; li.dataset.i=i;
+    li.innerHTML=`<img src="${im.url}" alt=""><span class="no">${i+1}</span>${im.kind==='video'?`<span class="vid">▶ ${im.dur.toFixed(1)}s</span>`:''}<button class="x" title="削除">✕</button>
+      ${i>0?'<button class="mv l" title="前へ">◀</button>':''}${i<S.images.length-1?'<button class="mv r" title="後ろへ">▶</button>':''}`;
+    li.querySelector('.x').onclick=()=>{const [r]=S.images.splice(i,1);if(r.el){r.el.pause();URL.revokeObjectURL(r.el.src);r.el.removeAttribute('src');r.el.load();}gl.deleteTexture(r.tex);if(r.mask)gl.deleteTexture(r.mask);URL.revokeObjectURL(r.url);refresh();};
+    const l=li.querySelector('.mv.l'), rr=li.querySelector('.mv.r');
+    if(l) l.onclick=()=>{move(i,i-1)}; if(rr) rr.onclick=()=>{move(i,i+1)};
+    li.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/x-idx',i);li.classList.add('dragging')});
+    li.addEventListener('dragend',()=>li.classList.remove('dragging'));
+    li.addEventListener('dragover',e=>{if(e.dataTransfer.types.includes('text/x-idx'))e.preventDefault()});
+    li.addEventListener('drop',e=>{const from=+e.dataTransfer.getData('text/x-idx');if(!isNaN(from)){e.preventDefault();e.stopPropagation();move(from,i);}});
+    ol.appendChild(li);
+  });
+}
+function move(a,b){if(a===b)return;const [x]=S.images.splice(a,1);S.images.splice(b,0,x);refresh();}
+
+/* ============================================================
+   Music + BPM detection
+   ============================================================ */
+function detectBeat(buf){
+  const sr=buf.sampleRate, hop=512, len=Math.min(buf.length, sr*90);
+  const chs=[];for(let c=0;c<buf.numberOfChannels;c++)chs.push(buf.getChannelData(c));
+  const n=Math.floor(len/hop), env=new Float32Array(n);
+  let prev=0;
+  for(let i=0;i<n;i++){
+    let e=0;
+    for(let j=i*hop;j<(i+1)*hop;j++){let v=0;for(const ch of chs)v+=ch[j];e+=v*v;}
+    e=Math.log(1e-9+e);
+    env[i]=Math.max(0,e-prev); prev=e;
+  }
+  // remove mean
+  let m=0;for(const v of env)m+=v;m/=n;for(let i=0;i<n;i++)env[i]=Math.max(0,env[i]-m);
+  const fps=sr/hop;
+  let best=0,bestBpm=120;
+  for(let bpm=70;bpm<=180;bpm+=.25){
+    const lag=fps*60/bpm, li=Math.floor(lag), fr=lag-li;
+    let s=0;
+    for(let i=0;i+li+1<n;i++) s+=env[i]*(env[i+li]*(1-fr)+env[i+li+1]*fr);
+    s*=Math.exp(-Math.pow(Math.log2(bpm/120),2)/(2*.5*.5)); // prefer ~120
+    if(s>best){best=s;bestBpm=bpm;}
+  }
+  if(bestBpm<85) bestBpm*=2;
+  const per=fps*60/bestBpm; let bp=0,bv=-1;
+  for(let ph=0;ph<per;ph++){let s=0;for(let x=ph;x<n;x+=per)s+=env[Math.round(x)]||0;if(s>bv){bv=s;bp=ph;}}
+  return {bpm:Math.round(bestBpm*10)/10, phase:bp/fps};
+}
+
+async function setMusic(f){
+  if(S.audio){S.audio.pause();}
+  const url=URL.createObjectURL(f);
+  // a fresh element each time: MediaElementSource can only be created once per element
+  const a=new Audio(); a.src=url; a.preload='auto'; a.crossOrigin='anonymous';
+  S.audio=a; mediaSrc=null;
+  $('musicName').textContent=f.name;
+  await new Promise(r=>{a.onloadedmetadata=r;a.onerror=r;});
+  $('audioStart').max=Math.max(0,(a.duration||0)-1).toFixed(2); $('audioStart').disabled=false;
+  $('audioStart').value=0; S.audioStart=0; $('audioStartVal').textContent='0.0s';
+  try{
+    const ac=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,44100,44100);
+    S.audioBuf=await ac.decodeAudioData(await f.arrayBuffer());
+    $('detectBtn').disabled=false;
+    runDetect();
+  }catch(e){console.warn('decode failed',e);S.audioBuf=null;}
+}
+let beatPhase=0;
+function runDetect(){
+  if(!S.audioBuf) return;
+  $('detectBtn').textContent='解析中…';
+  setTimeout(()=>{
+    const {bpm,phase}=detectBeat(S.audioBuf);
+    beatPhase=phase; S.bpm=bpm; $('bpm').value=bpm;
+    snapStart(); $('detectBtn').textContent='自動検出';
+    refresh();
+  },30);
+}
+function snapStart(){
+  const per=60/S.bpm, v=+$('audioStart').value;
+  let s=beatPhase+Math.round((v-beatPhase)/per)*per; if(s<0)s+=per;
+  S.audioStart=s; $('audioStartVal').textContent=s.toFixed(2)+'s';
+}
+
+/* ============================================================
+   UI wiring
+   ============================================================ */
+$('drop').onclick=()=>$('fileIn').click();
+$('fileIn').onchange=e=>{addFiles(e.target.files);e.target.value='';};
+['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{if(e.dataTransfer.types.includes('Files')){e.preventDefault();$('drop').classList.add('over');}}));
+['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{if(ev==='dragleave'&&e.relatedTarget)return;$('drop').classList.remove('over');}));
+document.addEventListener('drop',e=>{if(e.dataTransfer.files.length){e.preventDefault();addFiles(e.dataTransfer.files);}});
+
+$('playBtn').onclick=()=>playing?stop():play();
+$('seek').oninput=e=>{curT=e.target.value/1000*timeline.duration;if(playing){stop();play(curT);}else{render(curT);updateTime();}};
+$('musicBtn').onclick=()=>$('musicIn').click();
+$('musicIn').onchange=e=>{if(e.target.files[0])setMusic(e.target.files[0]);e.target.value='';};
+$('detectBtn').onclick=runDetect;
+$('audioStart').oninput=()=>{snapStart();};
+$('bpm').onchange=e=>{S.bpm=Math.min(200,Math.max(60,+e.target.value||128));e.target.value=S.bpm;if(S.audio)snapStart();refresh();};
+$('beatsPer').onchange=e=>{S.beatsPer=+e.target.value;refresh();};
+$('fit').onchange=e=>{S.fit=e.target.value;render(curT);};
+const showVal=()=>document.querySelectorAll('.val').forEach(el=>el.textContent=Math.round($(el.dataset.for).value*100)+'%');
+$('intensity').oninput=e=>{S.intensity=+e.target.value;showVal();if(!playing)render(curT);};
+$('random').oninput=e=>{S.random=+e.target.value;showVal();refresh();};
+$('split').oninput=e=>{S.split=+e.target.value;showVal();refresh();};
+$('people').oninput=e=>{S.people=+e.target.value;showVal();refresh();};
+$('length').onchange=e=>{S.length=+e.target.value;refresh();};
+$('retroAmt').oninput=e=>{S.retroAmt=+e.target.value;showVal();if(!playing)render(curT);};
+$('quality').onchange=e=>{S.quality=e.target.value;if(!playing)render(curT);};
+$('hud').onchange=e=>{S.hud=e.target.checked;if(!playing)render(curT);};
+$('shuffleBtn').onclick=()=>{S.seed=(Math.random()*1e6)|0;refresh();};
+$('aspect').onchange=e=>{const [w,h]=e.target.value.split('x').map(Number);setSize(w,h);};
+$('exportBtn').onclick=exportVideo;
+showVal();
+
+function setSize(w,h){
+  S.W=w;S.H=h; out.width=comp.width=w; out.height=comp.height=h; sizeLayerFbos(w,h);
+  $('screen').style.aspectRatio=w>=h?'16/10':'4/5';
+  render(curT);
+}
+setSize(1440,1080);
+refresh();
+</script>
+</body>
+</html>
