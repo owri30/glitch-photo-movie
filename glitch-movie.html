@@ -174,6 +174,7 @@ input[type=range]{accent-color:var(--accent)}
       <p class="hint">ランダム性：0で「基本の長さ」の一定リズム。上げるほど、0.23秒刻みの速い切り替えやシンコペーションなど色々なリズムが混ざり、数小節ごとにリズムが変わります。<br>斜め分割：画面を斜めに分けて半分ずつ別の加工にする頻度。<br>人物エフェクト：人物以外をぐにゃぐにゃ／モザイク／単色にする、人物・顔・体の一部にモザイクをかける、顔・目・口・手のひらの中に別の動画を流す、などの頻度。</p>
       <div class="row">
         <label class="check"><input type="checkbox" id="hud" checked> HUD文字・ライン</label>
+        <label class="check"><input type="checkbox" id="panelOn" checked> 割れる・ずれる切り替え</label>
       </div>
       <div class="row">
         <button id="shuffleBtn">🎲 エフェクトを組み替える</button>
@@ -216,7 +217,7 @@ input[type=range]{accent-color:var(--accent)}
 const S = {
   images: [],          // {bmp, url, tex, w, h, id}
   bpm: 128, beatsPer: 4, fit: 'contain', intensity: 0.8, hud: true, seed: 7,
-  random: 0.6, split: 0.35, people: 0.5, length: 0, quality: 'clear', retroAmt: 0.8,
+  random: 0.6, split: 0.35, people: 0.5, length: 0, panelOn: true, quality: 'clear', retroAmt: 0.8,
   W: 1440, H: 1080,
   audio: null, audioBuf: null, audioStart: 0,
 };
@@ -1034,6 +1035,7 @@ function buildTimeline(){
     if(c.melt) trans = twoOk ? 'pmelt' : fresh(GLITCH_TR,at,6,null,0);
     if(TWO_TR.includes(trans) && (!twoOk || c.hold)) trans=fresh(GLITCH_TR,at,6,null,0);
     if(c.hold && r()<.6) trans=pickFrom(['cut','white','rgb']);            // land on the hold with a hard hit
+    if(trans==='panel' && !S.panelOn) trans=fresh(GLITCH_TR,at,6,null,0);   // split / shift switched off
     if(trans!=='cut'&&trans!=='none') mark(trans,at,tFam);
     let uv = i>0 && !c.fast && r()<.15+.25*R ? fresh(UV_POOL,at,16,null,0,'u') : 0;
     let split=null;
@@ -1614,7 +1616,7 @@ function notify(msg){
   clearTimeout(notify.t); notify.t=setTimeout(()=>{n.hidden=true;},7000);
 }
 function setBusy(b){
-  ['exportBtn','playBtn','seek','shuffleBtn','aspect','beatsPer','bpm','fit','fileIn','musicBtn','detectBtn','audioStart','random','split','quality','people','length']
+  ['exportBtn','playBtn','seek','shuffleBtn','aspect','beatsPer','bpm','fit','fileIn','musicBtn','detectBtn','audioStart','random','split','quality','people','length','panelOn']
     .forEach(id=>{const el=$(id);if(el)el.disabled=b||(id==='detectBtn'&&!S.audioBuf)||(id==='audioStart'&&!S.audio)});
   $('exportBtn').textContent=b?'書き出し中…':'動画を書き出す';
 }
@@ -1796,6 +1798,7 @@ $('length').onchange=e=>{S.length=+e.target.value;refresh();};
 $('retroAmt').oninput=e=>{S.retroAmt=+e.target.value;showVal();if(!playing)render(curT);};
 $('quality').onchange=e=>{S.quality=e.target.value;if(!playing)render(curT);};
 $('hud').onchange=e=>{S.hud=e.target.checked;if(!playing)render(curT);};
+$('panelOn').onchange=e=>{S.panelOn=e.target.checked;refresh();};
 $('shuffleBtn').onclick=()=>{S.seed=(Math.random()*1e6)|0;refresh();};
 $('aspect').onchange=e=>{const [w,h]=e.target.value.split('x').map(Number);setSize(w,h);};
 $('exportBtn').onclick=exportVideo;
