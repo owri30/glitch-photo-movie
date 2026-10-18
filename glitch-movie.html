@@ -175,6 +175,7 @@ input[type=range]{accent-color:var(--accent)}
       <div class="row">
         <label class="check"><input type="checkbox" id="hud" checked> HUD文字・ライン</label>
         <label class="check"><input type="checkbox" id="panelOn" checked> 割れる・ずれる切り替え</label>
+        <label class="check"><input type="checkbox" id="splitOn" checked> 斜め分割</label>
       </div>
       <div class="row">
         <button id="shuffleBtn">🎲 エフェクトを組み替える</button>
@@ -217,7 +218,7 @@ input[type=range]{accent-color:var(--accent)}
 const S = {
   images: [],          // {bmp, url, tex, w, h, id}
   bpm: 128, beatsPer: 4, fit: 'contain', intensity: 0.8, hud: true, seed: 7,
-  random: 0.6, split: 0.35, people: 0.5, length: 0, panelOn: true, quality: 'clear', retroAmt: 0.8,
+  random: 0.6, split: 0.35, people: 0.5, length: 0, panelOn: true, splitOn: true, quality: 'clear', retroAmt: 0.8,
   W: 1440, H: 1080,
   audio: null, audioBuf: null, audioStart: 0,
 };
@@ -1039,7 +1040,7 @@ function buildTimeline(){
     if(trans!=='cut'&&trans!=='none') mark(trans,at,tFam);
     let uv = i>0 && !c.fast && r()<.15+.25*R ? fresh(UV_POOL,at,16,null,0,'u') : 0;
     let split=null;
-    if(i>0 && !c.hold && trans!=='panel' && r()<S.split){
+    if(i>0 && !c.hold && trans!=='panel' && S.splitOn && r()<S.split){
       const sb=fresh(STYLES.filter(s=>sFam(s)!==sFam(style)),at,8,null,0);
       split={a:(r()<.5?.785:2.356)+(r()-.5)*.5, p:(r()-.5)*.35, styleB:sb, uvB:r()<.25?pickFrom(UV_POOL):0, swap:r()<R};
     }
@@ -1616,8 +1617,8 @@ function notify(msg){
   clearTimeout(notify.t); notify.t=setTimeout(()=>{n.hidden=true;},7000);
 }
 function setBusy(b){
-  ['exportBtn','playBtn','seek','shuffleBtn','aspect','beatsPer','bpm','fit','fileIn','musicBtn','detectBtn','audioStart','random','split','quality','people','length','panelOn']
-    .forEach(id=>{const el=$(id);if(el)el.disabled=b||(id==='detectBtn'&&!S.audioBuf)||(id==='audioStart'&&!S.audio)});
+  ['exportBtn','playBtn','seek','shuffleBtn','aspect','beatsPer','bpm','fit','fileIn','musicBtn','detectBtn','audioStart','random','split','quality','people','length','panelOn','splitOn']
+    .forEach(id=>{const el=$(id);if(el)el.disabled=b||(id==='detectBtn'&&!S.audioBuf)||(id==='audioStart'&&!S.audio)||(id==='split'&&!S.splitOn)});
   $('exportBtn').textContent=b?'書き出し中…':'動画を書き出す';
 }
 
@@ -1799,6 +1800,7 @@ $('retroAmt').oninput=e=>{S.retroAmt=+e.target.value;showVal();if(!playing)rende
 $('quality').onchange=e=>{S.quality=e.target.value;if(!playing)render(curT);};
 $('hud').onchange=e=>{S.hud=e.target.checked;if(!playing)render(curT);};
 $('panelOn').onchange=e=>{S.panelOn=e.target.checked;refresh();};
+$('splitOn').onchange=e=>{S.splitOn=e.target.checked;$('split').disabled=!S.splitOn;refresh();};
 $('shuffleBtn').onclick=()=>{S.seed=(Math.random()*1e6)|0;refresh();};
 $('aspect').onchange=e=>{const [w,h]=e.target.value.split('x').map(Number);setSize(w,h);};
 $('exportBtn').onclick=exportVideo;
