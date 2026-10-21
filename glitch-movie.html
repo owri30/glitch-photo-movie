@@ -171,11 +171,12 @@ input[type=range]{accent-color:var(--accent)}
         <input type="range" id="people" min="0" max="1" step="0.05" value="0.5">
         <span class="small val" data-for="people"></span>
       </div>
-      <p class="hint">ランダム性：0で「基本の長さ」の一定リズム。上げるほど、0.23秒刻みの速い切り替えやシンコペーションなど色々なリズムが混ざり、数小節ごとにリズムが変わります。<br>斜め分割：画面を斜めに分けて半分ずつ別の加工にする頻度。<br>人物エフェクト：人物以外をぐにゃぐにゃ／モザイク／単色にする、人物・顔・体の一部にモザイクをかける、顔・目・口・手のひらの中に別の動画を流す、などの頻度。</p>
+      <p class="hint">ランダム性：0で「基本の長さ」の一定リズム。上げるほど、0.23秒刻みの速い切り替えやシンコペーションなど色々なリズムが混ざり、数小節ごとにリズムが変わります。<br>斜め分割：画面を斜めに分けて半分ずつ別の加工にする頻度。<br>人物エフェクト：人物以外をぐにゃぐにゃ／モザイク／単色にする、人物・顔・体の一部にモザイクをかける、顔・目・口・手のひらの中に別の動画を流す、体の一部がマイクラ風のブロックになってぼこぼこ動く、などの頻度。</p>
       <div class="row">
         <label class="check"><input type="checkbox" id="hud" checked> HUD文字・ライン</label>
         <label class="check"><input type="checkbox" id="panelOn" checked> 割れる・ずれる切り替え</label>
         <label class="check"><input type="checkbox" id="splitOn" checked> 斜め分割</label>
+        <label class="check"><input type="checkbox" id="voxOn" checked> マイクラ風ブロック</label>
       </div>
       <div class="row">
         <button id="shuffleBtn">🎲 エフェクトを組み替える</button>
@@ -218,7 +219,7 @@ input[type=range]{accent-color:var(--accent)}
 const S = {
   images: [],          // {bmp, url, tex, w, h, id}
   bpm: 128, beatsPer: 4, fit: 'contain', intensity: 0.8, hud: true, seed: 7,
-  random: 0.6, split: 0.35, people: 0.5, length: 0, panelOn: true, splitOn: true, quality: 'clear', retroAmt: 0.8,
+  random: 0.6, split: 0.35, people: 0.5, length: 0, panelOn: true, splitOn: true, voxOn: true, quality: 'clear', retroAmt: 0.8,
   W: 1440, H: 1080,
   audio: null, audioBuf: null, audioStart: 0,
 };
@@ -273,6 +274,7 @@ uniform vec4 uFeatBox;            // bounding box of the chosen regions (image u
 uniform vec2 uVidImg;
 uniform vec3 uBgCol;
 uniform vec4 uProt;     // what a person-aware melt keeps: w<.5 the person mask, else a blob (x,y centre, z radius)
+uniform float uVoxA;    // Minecraft-like blocks (mask effect 11): 0..1 as they rise; the part of the person is uRect
 
 vec2 toImg(vec2 s){
   float sa=uRes.x/uRes.y, ia=uImg.x/uImg.y;
@@ -299,6 +301,44 @@ float edgeAt(vec2 s){
   float bl=luma(samp(s+vec2(-px.x,px.y))),b=luma(samp(s+vec2(0,px.y))),br=luma(samp(s+vec2(px.x,px.y)));
   float gx=-tl-2.*l-bl+tr+2.*r+br, gy=-tl-2.*t-tr+bl+2.*b+br;
   return length(vec2(gx,gy));
+}
+
+/* Minecraft-like blocks: square screen cells inside part of the person (uRect, image uv) become cubes of their own
+   height seen from above-right: tops shift up-left, the right and bottom faces show */
+const vec2 VK=vec2(.45,.6);   // top shift per unit of height, in cells (screen y points down)
+float voxRegion(vec2 sc){      // 0 at the centre of the chosen part, 1 at its edge
+  vec2 iu=toImg(sc), c=(uRect.xy+uRect.zw)*.5, h=max((uRect.zw-uRect.xy)*.5,vec2(.001));
+  return length((iu-c)/h);
+}
+float voxCell(vec2 cell,float cpx,out vec3 cc){   // height in cells, or -1 when this cell stays flat
+  vec2 sc=(cell+.5)*cpx/uRes;
+  float d=voxRegion(sc), rr=.8+.4*hash(cell+3.7);
+  cc=vec3(0.);
+  if(d>rr||maskAt(sc).r<.5) return -1.;
+  cc=samp(sc);
+  float n=noise(cell*.45+vec2(uTime*.35,-uTime*.27));   // blocks keep rising and sinking
+  return uVoxA*2.8*(.1+.9*n)*smoothstep(rr,rr*.35,d);
+}
+vec4 voxels(vec2 uv){
+  float cpx=uRes.y/14.;
+  vec2 p=uv*uRes/cpx, base=floor(p);
+  float best=-1., face=0.; vec3 bc=vec3(0.); vec2 tq=vec2(0.);
+  for(int j=0;j<3;j++) for(int i=0;i<3;i++){
+    vec2 cell=base+vec2(float(i),float(j));
+    vec3 cc; float h=voxCell(cell,cpx,cc);
+    if(h<0.) continue;
+    vec2 z0=(cell-p)/VK, z1=(cell+1.-p)/VK;          // where the view ray is over this cell; keep the highest hit
+    float zmin=max(0.,max(z0.x,z0.y)), zmax=min(h,min(z1.x,z1.y));
+    if(zmin>zmax||zmax<=best) continue;
+    best=zmax; bc=cc;
+    face = zmax>=h-1e-4 ? 0. : (z1.x<z1.y ? 1. : 2.); // 0 top, 1 right side, 2 bottom side
+    tq=p+zmax*VK-cell;
+  }
+  if(best<0.) return vec4(0.);
+  vec3 vc=bc;
+  if(face<.5){ vec2 e=min(tq,1.-tq); vc*=1.06-.18*smoothstep(.08,0.,min(e.x,e.y)); }
+  else if(face<1.5) vc*=.72; else vc*=.5;
+  return vec4(vc,1.);
 }
 
 /* geometric modes: 1 mosaic, 2 mirror, 3 kaleidoscope, 4 wave */
@@ -512,6 +552,7 @@ void main(){
       bc=sampleCol(pixAt(ss,uMosA)); pc=sampleCol(pixAt(ss,uMosB));
     }
     col=mix(bc,pc,person);
+    if(mfx==11 && uVoxA>0. && voxRegion(vUv)<2.2){ vec4 vx=voxels(vUv); col=mix(col,vx.rgb,vx.a); }
   }
 
   if(streak>0.) col = streak>1.5 ? vec3(0.) : clamp(col*tint*1.35,0.,1.);
@@ -612,7 +653,7 @@ function program(fs,names){
 }
 const scene = program(FS,['uTex','uRes','uImg','uPan','uFit','uStretchV','uStretchY','uStreakH','uRgb','uBlock','uBlur','uSeed','uTime',
   'uFlash','uDots','uInvert','uPix','uFlashCol','uLookA','uParA','uUvA','uLookB','uParB','uUvB','uSplit','uSplitA','uSplitP',
-  'uMask','uHasMask','uMaskFx','uMosA','uMosB','uFxPar','uRect','uRect2','uParts','uBgCol','uProt','uFeat','uVid','uFeatSel','uHasVid','uFeatBox','uVidImg']);
+  'uMask','uHasMask','uMaskFx','uMosA','uMosB','uFxPar','uRect','uRect2','uParts','uBgCol','uProt','uFeat','uVid','uFeatSel','uHasVid','uFeatBox','uVidImg','uVoxA']);
 const post = program(PFS,['uTex','uOv','uRes','uMode','uAmt','uTime']);
 const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,vb);
 gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
@@ -1001,7 +1042,8 @@ function buildTimeline(){
   const STYLE_FAM={normal:'n',thermal:'map',gradmap:'map',hue:'map',poster:'map',tint:'map',
     mono:'bw',mononeg:'bw',sketch:'bw',solar:'bw',halftone:'bw',neon:'glow',rgbsplit:'glow',cross:'film',bleach:'film',splash:'paint'};
   const sFam=s=>STYLE_FAM[s]||s;
-  const MASK_FAM={1:'warp',8:'warp',9:'warp',2:'mos',3:'mos',4:'mos',5:'mos',7:'mos',6:'flat',10:'feat'};
+  const MASK_FAM={1:'warp',8:'warp',9:'warp',2:'mos',3:'mos',4:'mos',5:'mos',7:'mos',6:'flat',10:'feat',11:'vox'};
+  const VOX=S.voxOn?[11,11,11,11]:[];   // 11: Minecraft-like blocks on part of the person
   const VIDS=S.images.map((m,j)=>m.kind==='video'?j:-1).filter(j=>j>=0);
   const mFam=m=>'m'+MASK_FAM[m];
   const tFam=t=>TWO_TR.includes(t)?'two':'g'+t;
@@ -1049,11 +1091,11 @@ function buildTimeline(){
     if(c.hold){
       // a hold shows something that keeps moving: the person turns psychedelic / the background flows,
       // or (no person) the whole picture goes liquid
-      if(person) maskFx=fresh(im.featBox?[9,9,1,8,10,10]:[9,9,1,8],at,8,null,0,'m');
+      if(person) maskFx=fresh((im.featBox?[9,9,1,8,10,10]:[9,9,1,8]).concat(VOX),at,8,null,0,'m');
       else if(im.kind==='video') style=fresh(['normal','cross','bleach'],at,4,null,0);   // a clip already moves
       else { uv=5; style=fresh(['normal','hue','cross','bleach','tint'],at,4,null,0); }
     } else if(i>0 && person && r()<S.people && ago('fmany',at)>=(c.fast?2:1)){
-      maskFx=fresh(MASK_POOL,at,10,mFam,4,'m');
+      maskFx=fresh(MASK_POOL.concat(VOX),at,10,mFam,4,'m');
       if(maskFx===4&&im.faceArea<.001) maskFx=3;
       if(maskFx===10&&!im.featBox) maskFx=3;
     }
@@ -1199,6 +1241,14 @@ function segLook(sg,t,salt){
                : fx===7?pr(4,[20,28,40,56]) : pr(5,[12,18,26,36,50]));
     L.mosB = u*pr(6,[8,10,12]);
     if(fx===8||fx===1) L.fxPar=sg.fxPar+(vary?rnd(S.seed,bi,33)*.3:0);
+    if(fx===11){
+      // one part of the person turns into blocks: a box somewhere inside the person; the blocks rise over a beat
+      const im=S.images[sg.img], pb=im.personBox||[0,0,1,1], bw=pb[2]-pb[0], bh=pb[3]-pb[1];
+      const rr=k=>rnd(S.seed,Math.round(sg.start*1000),k,71);
+      const w=bw*(.35+rr(1)*.3), h=bh*(.22+rr(2)*.22), x=pb[0]+rr(3)*(bw-w), y=pb[1]+rr(4)*(bh-h);
+      L.rect=[x,y,x+w,y+h];
+      L.voxA=easeOut((t-sg.start)/beat);
+    }
     if(fx===5){
       // 1-3 body parts (face / hair / skin / clothes), re-chosen every beat or half beat;
       // when the parts can't be told apart, two boxes inside the person instead
@@ -1442,6 +1492,7 @@ function drawLayer(L,P,t,fb){
   if(vim && vim.kind==='video') syncVideo(vim,(L.featT||0)%(vim.dur||1),!(L.still&&P.frozen));
   gl.uniform1f(u.uHasVid,vim?1:0); gl.uniform2f(u.uVidImg,vim?vim.w:1,vim?vim.h:1);
   gl.uniform1f(u.uFeatSel,L.featSel||0); gl.uniform4fv(u.uFeatBox,L.featBox||[0,0,1,1]);
+  gl.uniform1f(u.uVoxA,L.voxA||0);
   gl.activeTexture(gl.TEXTURE0);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
 }
@@ -1617,7 +1668,7 @@ function notify(msg){
   clearTimeout(notify.t); notify.t=setTimeout(()=>{n.hidden=true;},7000);
 }
 function setBusy(b){
-  ['exportBtn','playBtn','seek','shuffleBtn','aspect','beatsPer','bpm','fit','fileIn','musicBtn','detectBtn','audioStart','random','split','quality','people','length','panelOn','splitOn']
+  ['exportBtn','playBtn','seek','shuffleBtn','aspect','beatsPer','bpm','fit','fileIn','musicBtn','detectBtn','audioStart','random','split','quality','people','length','panelOn','splitOn','voxOn']
     .forEach(id=>{const el=$(id);if(el)el.disabled=b||(id==='detectBtn'&&!S.audioBuf)||(id==='audioStart'&&!S.audio)||(id==='split'&&!S.splitOn)});
   $('exportBtn').textContent=b?'書き出し中…':'動画を書き出す';
 }
@@ -1801,6 +1852,7 @@ $('quality').onchange=e=>{S.quality=e.target.value;if(!playing)render(curT);};
 $('hud').onchange=e=>{S.hud=e.target.checked;if(!playing)render(curT);};
 $('panelOn').onchange=e=>{S.panelOn=e.target.checked;refresh();};
 $('splitOn').onchange=e=>{S.splitOn=e.target.checked;$('split').disabled=!S.splitOn;refresh();};
+$('voxOn').onchange=e=>{S.voxOn=e.target.checked;refresh();};
 $('shuffleBtn').onclick=()=>{S.seed=(Math.random()*1e6)|0;refresh();};
 $('aspect').onchange=e=>{const [w,h]=e.target.value.split('x').map(Number);setSize(w,h);};
 $('exportBtn').onclick=exportVideo;
